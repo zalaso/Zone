@@ -1,0 +1,17 @@
+# DEMO MANUALE: copione scritto da una persona, non ricerca autonoma di un LLM.
+# Questo file contiene le azioni di entrambi i ruoli: non è l'input del futuro agente.
+agent {"type":"experiment_request","request_id":"probe-1","purpose":"Stimare la curvatura verticale e verificare il moto orizzontale.","experiment":{"initial_position":{"x":0,"y":0},"initial_velocity":{"x":4,"y":6},"duration":1,"observation_interval":0.25}}
+operator {"type":"operator_decision","request_id":"probe-1","action":"approve","reason":"Parametri ammissibili e misure sufficienti per una prima esplorazione."}
+run probe-1
+# Differenze seconde di y: -0.5 m ogni (0.25 s)^2, quindi accelerazione stimata -8 m/s^2.
+agent {"type":"hypothesis","hypothesis_id":"h1","statement":"Le misure suggeriscono velocità orizzontale costante e accelerazione verticale circa -8 m/s².","uncertainties":["Una sola traiettoria non distingue tutte le possibili dipendenze da quota e velocità.","La buona previsione di pochi punti non identifica univocamente una legge."],"evidence":["probe-1"]}
+agent {"type":"experiment_request","request_id":"check-1","purpose":"Verificare l'ipotesi con posizione e velocità iniziali diverse.","experiment":{"initial_position":{"x":1,"y":2},"initial_velocity":{"x":3,"y":4},"duration":0.5,"observation_interval":0.25}}
+operator {"type":"operator_decision","request_id":"check-1","action":"modify","reason":"Estendo la durata a un secondo per osservare anche il ritorno verso la quota iniziale.","modified_experiment":{"initial_position":{"x":1,"y":2},"initial_velocity":{"x":3,"y":4},"duration":1,"observation_interval":0.25}}
+# Previsione MANUALE sulla configurazione approvata, registrata prima di run.
+agent {"type":"prediction","prediction_id":"p1","hypothesis_id":"h1","request_id":"check-1","points":[{"t":0,"x":1,"y":2},{"t":0.25,"x":1.75,"y":2.75},{"t":0.5,"x":2.5,"y":3},{"t":0.75,"x":3.25,"y":2.75},{"t":1,"x":4,"y":2}]}
+run check-1
+plot check-1
+agent {"type":"experiment_request","request_id":"probe-2","purpose":"Ripetere il primo esperimento.","experiment":{"initial_position":{"x":0,"y":0},"initial_velocity":{"x":4,"y":6},"duration":1,"observation_interval":0.25}}
+operator {"type":"operator_decision","request_id":"probe-2","action":"reject","reason":"Preferisco riservare il budget residuo a condizioni iniziali più diverse."}
+status
+quit

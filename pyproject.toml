@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hidden-physics-lab"
+version = "0.4.0"
+description = "Laboratorio di fisica nascosta con operatore umano e agente LLM"
+requires-python = ">=3.11"
+dependencies = ["matplotlib>=3.8,<4"]
+
+[project.optional-dependencies]
+openai = ["openai>=2,<3"]
+anthropic = ["anthropic>=1,<2"]
+gemini = ["google-genai>=2,<3"]
+ollama = ["httpx>=0.28,<1"]
+all-llm = ["openai>=2,<3", "anthropic>=1,<2", "google-genai>=2,<3", "httpx>=0.28,<1"]
+llm = ["openai>=2,<3"]
+backend = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1", "httpx>=0.28,<1"]
+
+[project.scripts]
+physics-lab = "hidden_lab.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["hidden_lab*"]

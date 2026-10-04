@@ -1,0 +1,11 @@
+{
+  "type": "experiment_request",
+  "request_id": "probe-1",
+  "purpose": "Misurare la curvatura della traiettoria a intervalli regolari.",
+  "experiment": {
+    "initial_position": {"x": 0, "y": 0},
+    "initial_velocity": {"x": 4, "y": 6},
+    "duration": 1,
+    "observation_interval": 0.25
+  }
+}

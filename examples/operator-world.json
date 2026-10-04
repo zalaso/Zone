@@ -1,0 +1,7 @@
+{
+  "world": {"family": "constant", "gravity": 8.0, "coefficient": 0.0},
+  "integration_step": 0.005,
+  "noise_std": 0.0,
+  "seed": 2026,
+  "experiment_budget": 5
+}

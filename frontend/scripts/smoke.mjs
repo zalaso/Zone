@@ -1,0 +1,80 @@
+// Integration smoke against a running local backend and Vite; no mocked HTTP.
+import assert from 'node:assert/strict'
+import { chromium } from 'playwright'
+
+const token = process.env.ZONE_SMOKE_OPERATOR_TOKEN
+if (!token) throw new Error('Imposta ZONE_SMOKE_OPERATOR_TOKEN per il backend di prova locale.')
+const browser = await chromium.launch(process.env.ZONE_BROWSER_EXECUTABLE
+  ? { executablePath: process.env.ZONE_BROWSER_EXECUTABLE, headless: true }
+  : { channel: 'msedge', headless: true })
+try {
+  const context = await browser.newContext({ baseURL: 'http://127.0.0.1:5173', viewport: { width: 1280, height: 900 } })
+  const page = await context.newPage()
+  page.setDefaultTimeout(15_000)
+  const errors = []
+  page.on('pageerror', error => errors.push(error.message))
+  await page.goto('http://127.0.0.1:5173/')
+  await page.getByRole('option').first().waitFor({ state: 'attached' })
+  await page.getByLabel('Token operatore', { exact: true }).fill(token)
+  await page.getByRole('button', { name: 'Crea sessione', exact: true }).click()
+  await page.getByRole('heading', { name: 'Proponi un esperimento' }).waitFor()
+  const id = await page.locator('.session-id').innerText()
+  console.log('Sessione reale creata.')
+  await page.getByLabel('Scopo del lancio').fill('Controllare il percorso reale browser–backend.')
+  await page.getByRole('button', { name: 'Invia richiesta', exact: true }).click()
+  const decision = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Decidi sul lancio' }) })
+  await decision.getByLabel('Modifica', { exact: true }).check()
+  await decision.getByLabel('Durata (s)').fill('0.5')
+  await decision.getByLabel('Motivazione').fill('Tre punti per la verifica locale.')
+  await decision.getByRole('button', { name: 'Registra decisione' }).click()
+  await page.getByRole('button', { name: 'Verifica con previsione' }).click()
+  await page.getByLabel('Ipotesi', { exact: true }).fill('Ipotesi provvisoria; dati insufficienti.')
+  await page.getByRole('button', { name: 'Registra ipotesi', exact: true }).click()
+  for (const t of ['0', '0,25', '0,5']) {
+    await page.getByLabel(`x a ${t} secondi`, { exact: true }).fill('0')
+    await page.getByLabel(`y a ${t} secondi`, { exact: true }).fill('0')
+  }
+  await page.getByRole('button', { name: 'Preregistra previsione' }).click()
+  let state = await (await page.request.get(`/v1/sessions/${id}`)).json()
+  assert.equal(state.executed_experiments, 0, 'Nessuna esecuzione implicita')
+  await page.getByRole('button', { name: 'Esegui esperimento →' }).click()
+  await page.getByText('3 misure registrate', { exact: true }).waitFor()
+  console.log('Verifica reale eseguita dopo autorizzazione esplicita.')
+  await page.getByLabel('Conclusione', { exact: true }).fill('Percorso verificato; informazioni insufficienti per una legge.')
+  await page.getByLabel('Limiti (almeno uno, uno per riga)').fill('Un solo lancio.')
+  await page.getByRole('button', { name: 'Registra conclusione' }).click()
+  await page.getByRole('heading', { name: 'Predici gli stati nascosti' }).waitFor()
+  const replay = await (await page.request.get(`/v1/sessions/${id}/events`)).json()
+  const probes = replay.events.find(event => event.message.type === 'probe_challenge').message.probes
+  for (const probe of probes) {
+    await page.getByLabel(`ax per ${probe.probe_id}`, { exact: true }).fill('0')
+    await page.getByLabel(`ay per ${probe.probe_id}`, { exact: true }).fill('0')
+  }
+  await page.getByRole('button', { name: 'Consegna e valuta' }).click()
+  await page.getByRole('heading', { name: 'Risultato', exact: true }).waitFor()
+  console.log('Submission reale valutata.')
+  assert.equal(await page.getByRole('button', { name: 'Rivela mondo', exact: true }).isEnabled(), false)
+  state = await (await page.request.get(`/v1/sessions/${id}`)).json()
+  assert.equal(state.status, 'scored')
+  assert.equal(state.executed_experiments, 1)
+  const publicReplay = await (await page.request.get(`/v1/sessions/${id}/events`)).json()
+  assert.deepEqual(publicReplay.events.filter(e => ['execution_started', 'observation', 'verification'].includes(e.message.type)).map(e => e.message.type), ['execution_started', 'observation', 'verification'])
+  for (const secret of ['"seed"', '"config"', 'secret_grid', 'probe_truth']) assert(!JSON.stringify(publicReplay).includes(secret))
+  assert.equal(await page.evaluate(() => localStorage.length + sessionStorage.length), 0)
+  await page.screenshot({ path: '../benchmark_data/web-qa/consolidation-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'Nessun overflow mobile')
+  await page.getByLabel('Confermo di voler rivelare il mondo privato').check()
+  await page.getByRole('button', { name: 'Rivela mondo', exact: true }).click()
+  await page.getByRole('heading', { name: 'Record privato' }).waitFor()
+  const clean = await browser.newContext()
+  const readOnly = await clean.newPage()
+  await readOnly.goto('http://127.0.0.1:5173/')
+  await readOnly.getByLabel('ID sessione', { exact: true }).fill(id)
+  await readOnly.getByRole('button', { name: 'Apri sessione', exact: true }).click()
+  await readOnly.getByRole('heading', { name: 'Risultato', exact: true }).waitFor()
+  assert.equal(await readOnly.getByRole('heading', { name: 'Record privato' }).count(), 0)
+  assert.equal(await readOnly.getByLabel('Token agente', { exact: true }).inputValue(), '')
+  assert.deepEqual(errors, [])
+  console.log(`Browser–backend reale OK: sessione ${id}, verifica, submission, replay, reveal esplicito, viewport mobile.`)
+} finally { await browser.close() }
