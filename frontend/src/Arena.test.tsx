@@ -1,0 +1,46 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { beforeEach, expect, it, vi } from 'vitest'
+import { Arena } from './Arena'
+import { arenaApi } from './arena-api'
+
+const fake = vi.hoisted(() => ({ phase: 'awaiting_decision', runCalls: 0 }))
+const challenge = { challenge_id: 'challenge', name: 'Trial pubblico', world_id: 'w1234567890abcdef', closed: false, rules: { experiment_budget: 2, max_messages: 30, max_points: 9, execution_policy: 'exploration_only' } }
+const account = { agent_id: 'agent', name: 'Agente offline', model: 'offline', kind: 'offline_baseline', quotas: { sessions: 4, requests: 100, experiments: 12 }, usage: { sessions: 1, requests: 2, experiments: 0, invalid: 0 }, tokens: [{ token_id: 'token0123456789', expires_at: 2000000000, revoked: false }] }
+function trial() { return { session_id: 'session', challenge_id: 'challenge', agent_id: 'agent', status: fake.phase, version: 2, account, messages: 1, observations: 0, executed_experiments: fake.runCalls, pending_request_id: 'e1', resources: { agent_requests: 1, invalid_requests: 0 }, scores: null, events: [] } }
+vi.mock('./arena-api', () => ({ arenaApi: {
+  read: vi.fn(async (path: string) => path === 'challenges' ? { challenges: [challenge] } : path === 'agents' ? { agents: [account] } : path.endsWith('/trials') ? { trials: [trial()] } : path.endsWith('/leaderboard') ? { challenge, trials: [trial()], dimensions: { acceleration_rmse: [], interpolation_rmse: [], extrapolation_rmse: [] } } : trial()),
+  write: vi.fn(async (path: string, body: { message?: { type: string } }) => {
+    if (path.endsWith('/run')) { fake.runCalls++; fake.phase = 'discovering' }
+    else if (body.message?.type === 'operator_decision') fake.phase = 'awaiting_mode'
+    else if (body.message?.type === 'execution_mode') fake.phase = 'ready_to_run'
+    return trial()
+  }),
+} }))
+beforeEach(() => { fake.phase = 'awaiting_decision'; fake.runCalls = 0; vi.clearAllMocks() })
+
+it('rilegge e approva senza lanciare, richiede modalità e clic di esecuzione separati', async () => {
+  const local = vi.spyOn(Storage.prototype, 'setItem')
+  render(<Arena worlds={[{ world_id: 'w1234567890abcdef', experiment_budget: 2 }]} />)
+  fireEvent.change(screen.getByLabelText('Token operatore Arena'), { target: { value: 'operator-test' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Connetti Arena' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Agente offline · awaiting_decision' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Approva richiesta Arena' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Conferma esplorazione Arena' }))
+  await screen.findByRole('button', { name: 'Esegui esperimento Arena' })
+  expect(fake.runCalls).toBe(0)
+  fireEvent.click(screen.getByRole('button', { name: 'Esegui esperimento Arena' }))
+  await waitFor(() => expect(fake.runCalls).toBe(1))
+  expect(local).not.toHaveBeenCalled()
+  local.mockRestore()
+})
+
+it('mostra classifiche separate, quote e controllo di revoca', async () => {
+  render(<Arena worlds={[{ world_id: 'w1234567890abcdef', experiment_budget: 2 }]} />)
+  fireEvent.change(screen.getByLabelText('Token operatore Arena'), { target: { value: 'operator-test' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Connetti Arena' }))
+  await screen.findByText('RMSE interpolation · valori minori prima')
+  expect(screen.getByText('RMSE extrapolation · valori minori prima')).toBeInTheDocument()
+  expect(screen.getByText(/Chiamate LLM, token e costi del client esterno: non misurati/)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Revoca token token0123456' }))
+  await waitFor(() => expect(arenaApi.write).toHaveBeenCalledWith('tokens/token0123456789/revoke', {}, 'operator-test'))
+})

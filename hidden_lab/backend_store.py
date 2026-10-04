@@ -171,24 +171,27 @@ class SQLiteRepository:
 
     def read_session(self, session_id):
         with self._connect() as db:
-            db.execute("BEGIN")  # metadata ed eventi nella stessa snapshot
-            row = db.execute("SELECT s.world_id,s.agent_token_hash,s.score_json,s.audit_json,w.record_json "
-                "FROM sessions s JOIN worlds w ON s.world_id=w.id WHERE s.id=?", (session_id,)).fetchone()
-            if row is None:
-                raise NotFoundError()
-            events = [{"seq": seq, "actor": actor, "message": json.loads(message)}
-                      for seq, actor, message in db.execute(
-                          "SELECT seq,actor,message_json FROM events WHERE session_id=? ORDER BY seq",
-                          (session_id,))]
-            profile = db.execute("SELECT profile_json FROM session_profiles WHERE session_id=?", (session_id,)).fetchone()
-            calls = [{"call_index": i, "outcome": outcome, **json.loads(audit)} for i, outcome, audit in
-                     db.execute("SELECT call_index,outcome,audit_json FROM agent_calls WHERE session_id=? ORDER BY call_index", (session_id,))]
-            return {"id": session_id, "world_id": row[0], "agent_token_hash": row[1],
-                    "score": json.loads(row[2]) if row[2] is not None else None,
-                    "audit": json.loads(row[3]) if row[3] is not None else None,
-                    "record": json.loads(row[4]), "events": events,
-                    "profile": json.loads(profile[0]) if profile else {"mode": "scientist", "managed_agent": False},
-                    "calls": calls}
+            db.execute("BEGIN")
+            return self._read_session(db, session_id)
+
+    def _read_session(self, db, session_id):
+        row = db.execute("SELECT s.world_id,s.agent_token_hash,s.score_json,s.audit_json,w.record_json "
+            "FROM sessions s JOIN worlds w ON s.world_id=w.id WHERE s.id=?", (session_id,)).fetchone()
+        if row is None:
+            raise NotFoundError()
+        events = [{"seq": seq, "actor": actor, "message": json.loads(message)}
+                  for seq, actor, message in db.execute(
+                      "SELECT seq,actor,message_json FROM events WHERE session_id=? ORDER BY seq",
+                      (session_id,))]
+        profile = db.execute("SELECT profile_json FROM session_profiles WHERE session_id=?", (session_id,)).fetchone()
+        calls = [{"call_index": i, "outcome": outcome, **json.loads(audit)} for i, outcome, audit in
+                 db.execute("SELECT call_index,outcome,audit_json FROM agent_calls WHERE session_id=? ORDER BY call_index", (session_id,))]
+        return {"id": session_id, "world_id": row[0], "agent_token_hash": row[1],
+                "score": json.loads(row[2]) if row[2] is not None else None,
+                "audit": json.loads(row[3]) if row[3] is not None else None,
+                "record": json.loads(row[4]), "events": events,
+                "profile": json.loads(profile[0]) if profile else {"mode": "scientist", "managed_agent": False},
+                "calls": calls}
 
     def reserve_call(self, session_id, expected_version, max_calls):
         with self._connect() as db:
@@ -210,30 +213,36 @@ class SQLiteRepository:
     def append(self, session_id, expected_version, entries):
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
-            if db.execute("SELECT 1 FROM sessions WHERE id=?", (session_id,)).fetchone() is None:
-                raise NotFoundError()
-            version = db.execute("SELECT COALESCE(MAX(seq),0) FROM events WHERE session_id=?",
-                                 (session_id,)).fetchone()[0]
-            if version != expected_version:
-                raise ConflictError()
-            for actor, message in entries:
-                version += 1
-                db.execute("INSERT INTO events(session_id,seq,actor,message_json) VALUES(?,?,?,?)",
-                           (session_id, version, actor, _json(message)))
+            return self._append(db, session_id, expected_version, entries)
+
+    def _append(self, db, session_id, expected_version, entries):
+        if db.execute("SELECT 1 FROM sessions WHERE id=?", (session_id,)).fetchone() is None:
+            raise NotFoundError()
+        version = db.execute("SELECT COALESCE(MAX(seq),0) FROM events WHERE session_id=?",
+                             (session_id,)).fetchone()[0]
+        if version != expected_version:
+            raise ConflictError()
+        for actor, message in entries:
+            version += 1
+            db.execute("INSERT INTO events(session_id,seq,actor,message_json) VALUES(?,?,?,?)",
+                       (session_id, version, actor, _json(message)))
         return version
 
     def save_score(self, session_id, expected_version, score, audit):
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
-            row = db.execute("SELECT score_json FROM sessions WHERE id=?", (session_id,)).fetchone()
-            if row is None:
-                raise NotFoundError()
-            version = db.execute("SELECT COALESCE(MAX(seq),0) FROM events WHERE session_id=?",
-                                 (session_id,)).fetchone()[0]
-            if version != expected_version or row[0] is not None:
-                raise ConflictError()
-            db.execute("UPDATE sessions SET score_json=?,audit_json=? WHERE id=?",
-                       (_json(score), _json(audit), session_id))
-            db.execute("INSERT INTO events(session_id,seq,actor,message_json) VALUES(?,?,?,?)",
-                       (session_id, version + 1, "apparatus",
-                        _json({"type": "result_recorded", "scores": score})))
+            return self._save_score(db, session_id, expected_version, score, audit)
+
+    def _save_score(self, db, session_id, expected_version, score, audit):
+        row = db.execute("SELECT score_json FROM sessions WHERE id=?", (session_id,)).fetchone()
+        if row is None:
+            raise NotFoundError()
+        version = db.execute("SELECT COALESCE(MAX(seq),0) FROM events WHERE session_id=?",
+                             (session_id,)).fetchone()[0]
+        if version != expected_version or row[0] is not None:
+            raise ConflictError()
+        db.execute("UPDATE sessions SET score_json=?,audit_json=? WHERE id=?",
+                   (_json(score), _json(audit), session_id))
+        db.execute("INSERT INTO events(session_id,seq,actor,message_json) VALUES(?,?,?,?)",
+                   (session_id, version + 1, "apparatus",
+                    _json({"type": "result_recorded", "scores": score})))

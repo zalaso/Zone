@@ -1,4 +1,4 @@
-# Backend locale — fasi 4–6
+# Backend locale — fasi 4–7
 
 Il backend espone con FastAPI il laboratorio già esistente. Simulazione, validazione dei messaggi e valutazione scientifica restano nei moduli Python del core; la fase 6 aggiunge un agente del server con baseline offline predefinita e adapter reali soltanto su configurazione esplicita. Vedi [modalità e nuove route](public-modes.md). SQLite conserva il record privato del mondo, gli eventi append-only, l'hash del token agente e i risultati. `SessionRepository` delimita le operazioni di persistenza e `create_app(repository=...)` permette di sostituire SQLite senza cambiare le route. Non è ancora un servizio pubblico multiutente.
 
@@ -43,4 +43,8 @@ I messaggi di scoperta sono quelli documentati nel README: richiesta di esperime
 
 Gli eventi pubblici sono proiettati con una lista positiva di campi. Record del mondo, seed, legge, accelerazioni vere e griglia funzionale rimangono in SQLite e vengono restituiti solo dalla route di reveal con token operatore e conferma. Il reveal è permanente per quella sessione; non è disponibile prima di un risultato o di un arresto. Le risposte di errore non includono eccezioni del simulatore o segreti.
 
-Il rate limit locale è per IP e processo: 120 letture, 30 scritture e 10 richieste `run` per 60 secondi, con `429` e `Retry-After`. Non sostituisce quote distribuite, identità utente, TLS, backup o protezione contro un host compromesso. In questa fase il server resta vincolato a loopback; autenticazione pubblica, revoca dei token, quote persistenti, integrità competitiva e deployment appartengono alle fasi successive. Gli ID delle sessioni sono casuali e rendono i registri leggibili tramite link, ma non sono un controllo di accesso per informazioni riservate: solo eventi già pubblici sono leggibili senza token.
+Il rate limit locale è per IP e processo: 120 letture, 30 scritture e 10 richieste `run` per 60 secondi, con `429` e `Retry-After`. Non sostituisce quote distribuite, identità utente, TLS, backup o protezione contro un host compromesso. Il server resta vincolato a loopback. La fase 7 aggiunge [Arena BYOA v1](arena.md) con token revocabili e quote persistenti nel proprio namespace; i token storici del laboratorio mantengono il comportamento originario. Autenticazione pubblica, integrità competitiva e deployment restano futuri. Gli ID delle sessioni sono casuali e rendono i registri leggibili tramite link, ma non sono un controllo di accesso per informazioni riservate: solo eventi già pubblici sono leggibili senza token.
+
+## Arena
+
+Le sessioni Arena richiedono ownership e header di versione anche per la lettura: le route storiche `/v1/sessions` le rifiutano con `404`. Le challenge Arena aperte bloccano il reveal di quel mondo anche nelle sessioni del laboratorio. Le route Arena sono abilitate con `SQLiteRepository`; la sua interfaccia tradizionale resta utilizzabile senza Arena con un repository alternativo. La [guida Arena](arena.md) documenta protocollo, quote, receipt, audit e limiti.

@@ -145,7 +145,7 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
         supplied = request.headers.get("x-zone-token", "")
         if len(supplied) > 256:
             raise HTTPException(401, "Token mancante o non valido.")
-        valid = (hmac.compare_digest(supplied, token) if role == "operator" else
+        valid = (hmac.compare_digest(supplied.encode(), token.encode()) if role == "operator" else
                  hmac.compare_digest(sha256(supplied.encode()).hexdigest(), stored["agent_token_hash"]))
         if not valid:
             raise HTTPException(401, "Token mancante o non valido.")
@@ -154,6 +154,9 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
         if not SESSION_ID.fullmatch(session_id):
             raise NotFoundError()
         stored = repository.read_session(session_id)
+        if stored["profile"].get("mode") == "arena":
+            # Arena histories and credentials must never bypass ownership/version checks.
+            raise NotFoundError()
         state = LabState(stored["events"], stored["record"]["config"]["experiment_budget"], stored["score"])
         return stored, state
 
@@ -454,6 +457,8 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
         paired = match_records(stored)
         if paired and not all(s.score is not None or s.stopped for _, s in paired[1]):
             raise ValidationError("Reveal bloccato fino alla fine di entrambe le indagini.")
+        if isinstance(repository, SQLiteRepository) and app.state.arena.world_open(stored["world_id"]):
+            raise ValidationError("Reveal bloccato: una challenge Arena sul mondo è ancora aperta.")
         repository.append(session_id, state.version, [("apparatus", {"type": "reveal_recorded",
             "world_id": stored["world_id"], "manifest_hash": stored["record"]["sha256"]})])
         return {"session_id": session_id, "world": stored["record"], "audit": stored["audit"]}
@@ -559,4 +564,7 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
                 marker.set_result(None)
                 in_flight.pop(session_id, None)
 
+    if isinstance(repository, SQLiteRepository):
+        from .arena import install_arena
+        install_arena(app, repository, token)
     return app

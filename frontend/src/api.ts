@@ -4,8 +4,8 @@ export class ApiError extends Error {
   constructor(message: string, readonly status: number) { super(message) }
 }
 
-async function request<T>(path: string, method = 'GET', body?: unknown, token?: string): Promise<T> {
-  const headers: Record<string, string> = {}
+export async function request<T>(path: string, method = 'GET', body?: unknown, token?: string, extraHeaders: Record<string, string> = {}): Promise<T> {
+  const headers: Record<string, string> = { ...extraHeaders }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (token) headers['X-Zone-Token'] = token
   let response: Response

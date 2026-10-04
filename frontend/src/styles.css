@@ -754,3 +754,8 @@ blockquote {
 .comparison-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.5rem; margin-top:1.5rem; }
 .comparison-grid > div { min-width:0; }
 @media(max-width:900px) { .comparison-grid { grid-template-columns:1fr; } }
+:root { --arena-border: #d5d2ca; }
+.arena-agent { border-top: 1px solid var(--arena-border); margin-top: 1.5rem; padding-top: .8rem; }
+.arena-boards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 1.5rem; }
+.arena > .panel { margin-bottom: 1.5rem; }
+.arena .timeline { max-height: 40rem; overflow-y: auto; margin-top: 1.5rem; }
