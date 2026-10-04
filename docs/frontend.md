@@ -1,6 +1,6 @@
-# Laboratorio web locale — fase 5
+# Laboratorio web locale — fasi 5–6
 
-La UI in `frontend/` è un client React/TypeScript/Vite della [API locale](backend.md). Usa solo `/v1` sullo stesso origin; Vite inoltra queste richieste al backend su `127.0.0.1:8765`. Non contiene un modello LLM, non esegue formule o codice inviati come testo e non legge direttamente SQLite o i file del mondo. Per questa fase una persona può compilare i messaggi del ruolo agente e quelli dell'operatore nella stessa pagina. La separazione dei ruoli è applicata dal backend tramite token diversi. Un agente LLM collegato al backend resta un'integrazione successiva.
+La UI in `frontend/` è un client React/TypeScript/Vite della [API locale](backend.md). Usa solo `/v1` sullo stesso origin; Vite inoltra queste richieste al backend su `127.0.0.1:8765`. Non contiene un modello LLM, non esegue formule o codice inviati come testo e non legge direttamente SQLite o i file del mondo. Per questa fase una persona può compilare i messaggi del ruolo agente e quelli dell'operatore nella stessa pagina. La separazione dei ruoli è applicata dal backend tramite token diversi. La fase 6 aggiunge [cinque modalità locali](public-modes.md): un agente gestito sul server può usare la baseline offline predefinita oppure un provider configurato esplicitamente. Il browser non chiama provider esterni.
 
 ## Prima sessione locale
 
@@ -44,4 +44,4 @@ cd ..
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-I test frontend usano API simulate: verificano la sequenza decisione/modalità/lancio, rifiuto, modifica, challenge e risultato, oltre a header, paginazione e mancato retry del lancio. I test Python verificano il backend reale e il confine pubblico/privato senza rete. La build Vite produce `frontend/dist/`, ignorata da Git: ispezionarla per confermare l'assenza di credenziali prima di un'eventuale distribuzione. La distribuzione non è prevista nella fase 5.
+I test frontend usano API simulate: verificano la sequenza decisione/modalità/lancio, rifiuto, modifica, challenge e risultato, oltre a header, paginazione e mancato retry del lancio. I test Python verificano il backend reale e il confine pubblico/privato senza rete. La build Vite produce `frontend/dist/`, ignorata da Git: ispezionarla per confermare l'assenza di credenziali prima di un'eventuale distribuzione. La distribuzione non è prevista nelle fasi 5–6. Le prove browser reali sono documentate in [verifiche locali](verification.md).

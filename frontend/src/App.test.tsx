@@ -16,6 +16,7 @@ function status(): SessionStatus { return { session_id: sessionId, version: fake
 vi.mock('./api', () => ({
   ApiError: class extends Error { constructor(message: string, public status: number) { super(message) } },
   api: {
+    modes: vi.fn(async () => ({ modes: [], agent: { provider: 'offline_baseline', model: 'offline-affine-v1', real_model: false, settings: { max_calls: 20, max_turns: 15, max_points: 9, max_corrections: 2, timeout: 30 } } })),
     worlds: vi.fn(async () => [{ world_id: 'w1234567890abcdef', level: 1, experiment_budget: 3 }]),
     create: vi.fn(async () => ({ ...status(), agent_token: 'agent-secret' })),
     status: vi.fn(async () => status()),

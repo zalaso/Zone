@@ -23,6 +23,31 @@ export type SessionStatus = {
   challenge_available: boolean
   result_available: boolean
   revealed: boolean
+  mode?: string
+  participant?: 'human' | 'agent'
+  managed_agent?: boolean
+  match_id?: string | null
+  agent?: AgentInfo | null
+}
+
+export type AgentInfo = {
+  provider: string
+  model: string
+  real_model: boolean
+  settings: { max_calls: number; max_turns: number; max_corrections: number; max_points: number; timeout: number }
+  calls?: number
+  turns?: number
+  invalid_responses?: number
+}
+
+export type Match = {
+  match_id: string
+  human_session_id: string
+  agent_session_id: string
+  complete: boolean
+  rules: { experiment_budget: number; max_points: number; max_turns: number }
+  human: SessionStatus & { scores: Scores | null; observations: number; messages: number }
+  agent: SessionStatus & { scores: Scores | null; observations: number; messages: number }
 }
 
 export type WorldManifest = {

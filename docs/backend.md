@@ -1,6 +1,6 @@
-# Backend locale — fase 4
+# Backend locale — fasi 4–6
 
-Il backend espone con FastAPI il laboratorio già esistente. Simulazione, validazione dei messaggi e valutazione scientifica restano nei moduli Python del core; non c'è un adapter LLM nel server. SQLite conserva il record privato del mondo, gli eventi append-only, l'hash del token agente e i risultati. `SessionRepository` delimita le operazioni di persistenza e `create_app(repository=...)` permette di sostituire SQLite senza cambiare le route. Non è ancora un servizio pubblico multiutente.
+Il backend espone con FastAPI il laboratorio già esistente. Simulazione, validazione dei messaggi e valutazione scientifica restano nei moduli Python del core; la fase 6 aggiunge un agente del server con baseline offline predefinita e adapter reali soltanto su configurazione esplicita. Vedi [modalità e nuove route](public-modes.md). SQLite conserva il record privato del mondo, gli eventi append-only, l'hash del token agente e i risultati. `SessionRepository` delimita le operazioni di persistenza e `create_app(repository=...)` permette di sostituire SQLite senza cambiare le route. Non è ancora un servizio pubblico multiutente.
 
 ## Avvio locale
 

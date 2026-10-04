@@ -51,7 +51,7 @@ try {
     await page.getByLabel(`ay per ${probe.probe_id}`, { exact: true }).fill('0')
   }
   await page.getByRole('button', { name: 'Consegna e valuta' }).click()
-  await page.getByRole('heading', { name: 'Risultato', exact: true }).waitFor()
+  await page.getByRole('heading', { name: 'Risultato', exact: true, level: 2 }).waitFor()
   console.log('Submission reale valutata.')
   assert.equal(await page.getByRole('button', { name: 'Rivela mondo', exact: true }).isEnabled(), false)
   state = await (await page.request.get(`/v1/sessions/${id}`)).json()
@@ -72,7 +72,7 @@ try {
   await readOnly.goto('http://127.0.0.1:5173/')
   await readOnly.getByLabel('ID sessione', { exact: true }).fill(id)
   await readOnly.getByRole('button', { name: 'Apri sessione', exact: true }).click()
-  await readOnly.getByRole('heading', { name: 'Risultato', exact: true }).waitFor()
+  await readOnly.getByRole('heading', { name: 'Risultato', exact: true, level: 2 }).waitFor()
   assert.equal(await readOnly.getByRole('heading', { name: 'Record privato' }).count(), 0)
   assert.equal(await readOnly.getByLabel('Token agente', { exact: true }).inputValue(), '')
   assert.deepEqual(errors, [])

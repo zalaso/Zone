@@ -86,10 +86,10 @@ class LabState:
     def status(self):
         if self.revealed:
             return "revealed"
-        if self.submission is not None:
-            return "scored" if self.score is not None else "scoring_pending"
         if self.stopped:
             return "stopped"
+        if self.submission is not None:
+            return "scored" if self.score is not None else "scoring_pending"
         if self.challenge is not None:
             return "awaiting_submission"
         if self.running is not None:

@@ -1,4 +1,4 @@
-import type { LabEvent, Scores, SessionStatus, WorldManifest } from './types'
+import type { AgentInfo, LabEvent, Match, Scores, SessionStatus, WorldManifest } from './types'
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) { super(message) }
@@ -30,7 +30,14 @@ async function request<T>(path: string, method = 'GET', body?: unknown, token?: 
 
 export const api = {
   worlds: async () => (await request<{ worlds: WorldManifest[] }>('/worlds')).worlds,
-  create: (world_id: string, token: string) => request<SessionStatus & { agent_token: string }>('/sessions', 'POST', { world_id }, token),
+  modes: () => request<{ modes: string[]; agent: AgentInfo }>('/modes'),
+  daily: () => request<{ day: string; timezone: string; world: WorldManifest }>('/worlds/daily'),
+  build: (law: unknown, budget: number, token: string) => request<{ world: WorldManifest }>('/worlds/build', 'POST', { law, budget }, token),
+  generate: (level: number, budget: number, token: string) => request<{ world: WorldManifest }>('/worlds/generate', 'POST', { level, budget }, token),
+  create: (world_id: string, token: string, mode = 'scientist') => request<SessionStatus & { agent_token: string | null }>('/sessions', 'POST', { world_id, mode }, token),
+  createMatch: (world_id: string, token: string) => request<Match & { human_agent_token: string }>('/matches', 'POST', { world_id }, token),
+  match: (id: string) => request<Match>(`/matches/${encodeURIComponent(id)}`),
+  step: (id: string, version: number, token: string) => request<SessionStatus>(`/sessions/${encodeURIComponent(id)}/agent/step`, 'POST', { expected_version: version }, token),
   status: (id: string) => request<SessionStatus>(`/sessions/${encodeURIComponent(id)}`),
   events: async (id: string) => {
     const events: LabEvent[] = []
