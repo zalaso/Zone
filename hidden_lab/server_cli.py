@@ -12,6 +12,7 @@ def add_parser(commands):
     parser.add_argument("--world", action="append", type=Path, default=[],
                         help="Record World Forge privato; ripetibile")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--integrity-pack", action="append", type=Path, default=[], help="Pacchetto split privato v1; registra mondi e policy")
     parser.add_argument("--agent-provider", choices=("openai", "anthropic", "gemini", "ollama"))
     parser.add_argument("--agent-model")
     parser.add_argument("--allow-real-agent", action="store_true",
@@ -28,6 +29,8 @@ def run_command(args):
     if not os.environ.get("ZONE_OPERATOR_TOKEN"):
         raise ValueError("Imposta ZONE_OPERATOR_TOKEN prima dell'avvio.")
     records = [read_world(path) for path in args.world]
+    from .integrity_suite import read_pack
+    packs = [read_pack(path) for path in args.integrity_pack]
     from .provider_base import AgentSettings
     settings = AgentSettings(args.agent_model or "offline-affine-v1", max_calls=args.agent_max_calls,
         max_turns=args.agent_max_turns, timeout=args.agent_timeout, max_corrections=args.agent_max_corrections)
@@ -40,7 +43,7 @@ def run_command(args):
     from .backend import create_app
     import uvicorn
     try:
-        app = create_app(args.db, worlds=records, agent_client=client, agent_settings=settings)
+        app = create_app(args.db, worlds=records, agent_client=client, agent_settings=settings, integrity_packs=packs)
         uvicorn.run(app, host="127.0.0.1", port=args.port, access_log=False)
     finally:
         if client is not None:

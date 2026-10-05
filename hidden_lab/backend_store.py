@@ -77,8 +77,12 @@ class SQLiteRepository:
                     PRIMARY KEY(session_id, call_index)
                 );
             """)
+            from .integrity_store import install_schema
+            install_schema(db)
             for record in worlds:
                 validate_local_world(record)
+                from .integrity_store import IntegrityCatalog
+                IntegrityCatalog(self).check_registration(db, record)
                 world_id = record["world_id"]
                 old = db.execute("SELECT record_json FROM worlds WHERE id=?", (world_id,)).fetchone()
                 if old is not None and json.loads(old[0]) != record:
@@ -90,6 +94,9 @@ class SQLiteRepository:
     def register_world(self, record):
         manifest = local_manifest(record)
         with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            from .integrity_store import IntegrityCatalog
+            IntegrityCatalog(self).check_registration(db, record)
             old = db.execute("SELECT record_json FROM worlds WHERE id=?", (record["world_id"],)).fetchone()
             if old is not None and json.loads(old[0]) != record:
                 raise ConflictError()
@@ -117,10 +124,14 @@ class SQLiteRepository:
 
     def list_worlds(self):
         with self._connect() as db:
-            return [json.loads(row[0]) for row in db.execute(
-                "SELECT manifest_json FROM worlds ORDER BY id")]
+            from .integrity_store import IntegrityCatalog
+            catalog = IntegrityCatalog(self)
+            return [catalog.public_world(db, json.loads(row[0])) for row in db.execute(
+                "SELECT manifest_json FROM worlds ORDER BY id").fetchall()]
 
     def _insert_session(self, db, world_id, agent_token_hash, apparatus_message, profile):
+        from .integrity_store import IntegrityCatalog
+        IntegrityCatalog(self).session_admission(db, world_id, profile)
         session_id = secrets.token_hex(16)
         if db.execute("SELECT 1 FROM worlds WHERE id=?", (world_id,)).fetchone() is None:
             raise NotFoundError()
@@ -165,6 +176,10 @@ class SQLiteRepository:
                 return json.loads(row[0])
             record = factory()
             manifest = local_manifest(record)
+            from .integrity_store import IntegrityCatalog
+            catalog = IntegrityCatalog(self)
+            catalog.check_registration(db, record)
+            catalog.session_admission(db, record["world_id"], {"mode": "daily"})
             db.execute("INSERT OR IGNORE INTO worlds VALUES(?,?,?)", (record["world_id"], _json(record), _json(manifest)))
             db.execute("INSERT INTO daily_worlds VALUES(?,?)", (day, record["world_id"]))
             return manifest
@@ -222,6 +237,12 @@ class SQLiteRepository:
                              (session_id,)).fetchone()[0]
         if version != expected_version:
             raise ConflictError()
+        if any(message["type"] == "reveal_recorded" for _actor, message in entries):
+            from .integrity_store import IntegrityCatalog
+            catalog = IntegrityCatalog(self)
+            wid = db.execute("SELECT world_id FROM sessions WHERE id=?", (session_id,)).fetchone()[0]
+            catalog.authorize_reveal(db, wid)
+            catalog.retire(db, wid)
         for actor, message in entries:
             version += 1
             db.execute("INSERT INTO events(session_id,seq,actor,message_json) VALUES(?,?,?,?)",

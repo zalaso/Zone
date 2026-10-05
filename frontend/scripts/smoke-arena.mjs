@@ -1,6 +1,7 @@
 // Real Edge -> Vite -> FastAPI -> SQLite. Synthetic BYOA messages, no LLM calls.
 import assert from 'node:assert/strict'
 import { chromium } from 'playwright'
+import { writeFile } from 'node:fs/promises'
 
 const operator = process.env.ZONE_SMOKE_OPERATOR_TOKEN
 if (!operator) throw new Error('Imposta il token del backend locale di prova.')
@@ -8,6 +9,7 @@ const browser = await chromium.launch(process.env.ZONE_BROWSER_EXECUTABLE
   ? { executablePath: process.env.ZONE_BROWSER_EXECUTABLE, headless: true }
   : { channel: 'msedge', headless: true })
 const stamp = Date.now().toString()
+const integrity = process.env.ZONE_SMOKE_INTEGRITY === '1'
 try {
   const context = await browser.newContext({ baseURL: 'http://127.0.0.1:5173', viewport: { width: 1280, height: 900 } })
   const page = await context.newPage()
@@ -19,6 +21,14 @@ try {
   await page.getByRole('button', { name: 'Zone Arena', exact: true }).click()
   await page.getByLabel('Token operatore Arena').fill(operator)
   await page.getByRole('button', { name: 'Connetti Arena', exact: true }).click()
+  let manifestHash
+  if (integrity) {
+    const worlds = (await (await page.request.get('/v1/worlds')).json()).worlds
+    const test = worlds.find(w => w.integrity?.state === 'blind_test')
+    assert.ok(test, 'Serve un pacchetto Integrity nuovo nel database di prova.')
+    manifestHash = test.integrity.manifest_hash
+    await page.getByLabel('Mondo Forge Arena').selectOption(test.world_id)
+  }
   await page.getByLabel('Nome challenge').fill(`Smoke Arena ${stamp}`)
   await page.getByRole('button', { name: 'Crea challenge', exact: true }).click()
   await page.getByLabel('Challenge selezionata').locator('option').filter({ hasText: `Smoke Arena ${stamp}` }).waitFor({ state: 'attached' })
@@ -67,12 +77,25 @@ try {
   } })
   snapshot = await read(sid)
   const submission = { predictions: snapshot.events.find(e => e.message.type === 'probe_challenge').message.probes.map(p => ({ probe_id: p.probe_id, ax: 0, ay: 0 })) }
-  await write(`sessions/${sid}/submission`, { expected_version: snapshot.version, submission })
+  const scored = await write(`sessions/${sid}/submission`, { expected_version: snapshot.version, submission })
+  if (integrity) {
+    assert.equal(scored.scores, null)
+    assert.equal((await read(sid)).scores, null)
+  }
   await page.getByRole('button', { name: 'Aggiorna Arena', exact: true }).click()
   await page.getByText('RMSE interpolation · valori minori prima', { exact: true }).waitFor()
   await page.getByRole('heading', { name: `${agentName} · scored`, exact: true }).waitFor()
+  if (integrity) {
+    await page.getByRole('button', { name: 'Marca contaminazione · irreversibile', exact: true }).click()
+    await page.getByText(/Flag: known_law/).waitFor()
+    const board = await (await page.request.get(`/v1/arena/challenges/${cid}/leaderboard`, { headers: headers(operator) })).json()
+    assert.equal(board.dimensions.acceleration_rmse.length, 0)
+    assert.ok(board.trials[0].scores)
+    assert.equal(board.trials[0].integrity.eligible, false)
+  }
   await page.getByRole('button', { name: 'Chiudi challenge', exact: true }).click()
   await page.getByLabel('Challenge selezionata').locator('option').filter({ hasText: `Smoke Arena ${stamp} · chiusa` }).waitFor({ state: 'attached' })
+  if (integrity) assert.ok((await read(sid)).scores)
   const agents = await (await page.request.get('/v1/arena/agents', { headers: headers(operator) })).json()
   const registered = agents.agents.find(a => a.name === agentName)
   await page.getByRole('button', { name: `Revoca token ${registered.tokens[0].token_id.slice(0, 12)}`, exact: true }).click()
@@ -87,5 +110,14 @@ try {
   assert.ok(width.scroll <= width.view, `Overflow mobile: ${JSON.stringify(width)}`)
   await page.screenshot({ path: '../benchmark_data/web-qa/arena-mobile.png', fullPage: true })
   assert.deepEqual(errors, [])
-  console.log(JSON.stringify({ verified: 'Arena reale browser/backend, BYOA simulato, nessun LLM', challenge_id: cid, session_id: sid, experiments: 1, observations: 1, token_revoked: true, mobile_overflow: false }))
+  if (integrity) {
+    await page.getByLabel('Confermo il reveal privato Arena').check()
+    await page.getByRole('button', { name: 'Rivela mondo Arena', exact: true }).click()
+    await page.getByRole('heading', { name: 'Record privato Arena', exact: true }).waitFor()
+    const revealed = await (await page.request.get(`/v1/arena/sessions/${sid}/reveal`, { headers: headers(operator) })).json()
+    assert.equal(revealed.integrity_proof.manifest_hash, manifestHash)
+    assert.equal(revealed.integrity_proof.world_id, revealed.world.world_id)
+    await writeFile(process.env.ZONE_SMOKE_PROOF_OUT ?? '../benchmark_data/web-qa/integrity-reveal.json', JSON.stringify(revealed.integrity_proof, null, 2), { flag: 'wx' })
+  }
+  console.log(JSON.stringify({ verified: 'Arena reale browser/backend, BYOA simulato, nessun LLM', integrity, manifest_hash: manifestHash, challenge_id: cid, session_id: sid, experiments: 1, observations: 1, token_revoked: true, mobile_overflow: false }))
 } finally { await browser.close() }

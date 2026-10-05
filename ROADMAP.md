@@ -14,7 +14,7 @@ Stati: **completata**, **in corso**, **da fare**. Ogni fase richiede test pertin
 | 5. Laboratorio web | React/TypeScript/Vite accessibile; percorso completo dalla challenge al risultato e replay; bundle senza segreti. | Completata |
 | 6. Modalità pubbliche | Scientist, Human vs AI con condizioni equivalenti, Watch an Agent, World of the Day locale e Build a Universe validato. | Completata |
 | 7. Zone Arena | Protocollo BYOA versionato, token revocabili, quote, idempotenza, audit e leaderboard multidimensionale. | Completata |
-| 8. Integrità | Suite train/development pubbliche e test privata; manifest/reveal; controlli di contaminazione, duplicati e abuso; threat model. | Da fare |
+| 8. Integrità | Suite train/development pubbliche e test privata; manifest/reveal; controlli di contaminazione, duplicati e abuso; threat model. | Completata |
 | 9. Qualità open source | Licenza scelta dall'autore, CONTRIBUTING, condotta, template, changelog, versione, demo, container e CI per test/lint/type check. | Da fare |
 | 10. Preparazione pubblicazione | Health check, migrazioni, log, backup, ambienti, checklist e guide di distribuzione; demo locale completa. Deployment non eseguito. | Da fare |
 
@@ -24,4 +24,6 @@ La fase 1 include due baseline che producono trial senza accesso ai probe prima 
 
 ## Decisioni e limiti
 
-Le decisioni tecniche sono in `docs/decisions/`. Il repository Git è locale. Backend e frontend sono vincolati a loopback; non esistono ancora deployment o servizio pubblico. La fase 6 aggiunge le modalità locali e un agente gestito sul server, offline per default; nessun test con LLM reale prova capacità di scoperta. La fase 7 è un’Arena locale con operatore: non certifica il modello del client esterno, i suoi costi o l’integrità competitiva. Le fasi 8–10 restano da fare. La pubblicazione del codice e qualsiasi spesa restano fuori dallo sviluppo autorizzato.
+Le decisioni tecniche sono in `docs/decisions/`. Il repository Git è locale. Backend e frontend sono vincolati a loopback; non esistono ancora deployment o servizio pubblico. La fase 6 aggiunge le modalità locali e un agente gestito sul server, offline per default; nessun test con LLM reale prova capacità di scoperta. La fase 7 è un’Arena locale con operatore: non certifica il modello del client esterno, i suoi costi o l’integrità competitiva. La fase 8 aggiunge i controlli locali di integrità; le fasi 9–10 restano da fare. La pubblicazione del codice e qualsiasi spesa restano fuori dallo sviluppo autorizzato.
+
+La fase 8 è documentata in [Integrity](docs/integrity.md) e nel [threat model](docs/threat-model.md): catalogo locale fidato, split impegnati, ritiro dopo reveal, score in embargo, flag append-only, duplicati euristici e limiti per account. Nessuna attestazione del modello o dei costi BYOA; nessun trial LLM reale.

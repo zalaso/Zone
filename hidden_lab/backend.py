@@ -32,6 +32,7 @@ SESSION_ID = re.compile(r"[0-9a-f]{32}\Z")
 OPERATOR_TYPES = frozenset(("operator_decision", "operator_answer", "execution_mode"))
 PROBE_SHAPE = {"probe_id": None, "category": None, "x": None, "y": None, "vx": None, "vy": None}
 EXTRA_SHAPES = {
+    "integrity_flagged": {"reason": None},
     "probe_challenge": {"world_id": None, "probes": [PROBE_SHAPE]},
     "scientific_submission": {"predictions": [{"probe_id": None, "ax": None, "ay": None}],
                               "law_ast_json": None, "uncertainty_sigma": [None]},
@@ -102,7 +103,7 @@ def _version(value):
 
 def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None = None,
                operator_token=None, rate_limiter=None, agent_client=None, agent_settings=None,
-               day_clock=None):
+               day_clock=None, integrity_packs=()):
     """App locale: baseline offline predefinita, provider reale solo se iniettato esplicitamente."""
     token = operator_token if operator_token is not None else os.environ.get("ZONE_OPERATOR_TOKEN")
     if not isinstance(token, str) or len(token) < 32:
@@ -112,6 +113,13 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
             raise ValueError("Percorso SQLite mancante.")
         repository = SQLiteRepository(db_path, worlds)
     limiter = rate_limiter or RateLimiter()
+    if integrity_packs:
+        if not isinstance(repository, SQLiteRepository):
+            raise ValueError("I pacchetti integrità richiedono SQLiteRepository.")
+        from .integrity_store import IntegrityCatalog
+        from .integrity_suite import validate_pack
+        for pack in integrity_packs:
+            IntegrityCatalog(repository).import_pack(validate_pack(pack))
     client = agent_client or OfflineLabClient()
     settings = agent_settings or AgentSettings("offline-affine-v1")
     day_clock = day_clock or (lambda: datetime.now(timezone.utc).date())
@@ -284,6 +292,8 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
         manifest = next((item for item in repository.list_worlds() if item["world_id"] == body["world_id"]), None)
         if manifest is None:
             raise NotFoundError()
+        if manifest.get("integrity", {}).get("split") == "test":
+            raise ValidationError("Il test privato è riservato alle challenge Arena.")
         return manifest
 
     @app.post("/v1/matches", status_code=201)

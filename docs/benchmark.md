@@ -94,3 +94,7 @@ Remove-Item Env:OPENAI_API_KEY
 ```
 
 Prima di creare il client o effettuare una chiamata API il comando mostra provider, modello, mondo opaco, condizione, limiti e possibile costo. Solo digitando esattamente `avvia` inizia il trial; `--yes` è ammesso **solo** per fixture simulato e baseline offline. In `active`, la conferma copre al massimo il budget di lanci mostrato. Un errore di provider ferma subito il trial; usa una nuova cartella per un nuovo tentativo, dopo aver esaminato il risultato. Nessuna chiamata reale, modello locale, download o servizio è stato usato durante lo sviluppo del benchmark; compatibilità effettiva degli schemi e qualità dei modelli restano da verificare.
+
+## Split Integrity v1 — fase 8
+
+La preparazione `integrity prepare --kind benchmark` produce tre suite v0.3 con record train/development pubblici e test privato. `benchmark trial --integrity-pack PATH` verifica l’esatta appartenenza al pacchetto e registra split, manifest e commitment, senza inviarli come dati privati al provider. L’aggregazione rifiuta split/manifest diversi o risultati tracciati e non tracciati mescolati; risultati legacy senza il nuovo campo restano compatibili. I fixture sono marcati `integrity.oracle_fixture`, perché conoscono la legge e non costituiscono un test cieco. Il catalogo di accesso/ritiro è Arena; la CLI e i file di benchmark sono fidati e non attestati. Comandi completi e limiti in [Integrity](integrity.md). Nessun trial LLM reale validato durante lo sviluppo.

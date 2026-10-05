@@ -11,10 +11,11 @@ const dimensionNames: Record<string, string> = {
 }
 
 export function Arena({ worlds }: { worlds: WorldManifest[] }) {
+  const availableWorlds = worlds.filter(w => !w.builder_version && (!w.integrity || ['blind_test', 'untracked'].includes(w.integrity.state)))
   const [token, setToken] = useState('')
   const [challenges, setChallenges] = useState<ArenaChallenge[]>([])
   const [cid, setCid] = useState('')
-  const [worldId, setWorldId] = useState(worlds.find(w => !w.builder_version)?.world_id ?? '')
+  const [worldId, setWorldId] = useState(availableWorlds[0]?.world_id ?? '')
   const [name, setName] = useState('Prima challenge Arena')
   const [agentName, setAgentName] = useState('')
   const [model, setModel] = useState('')
@@ -29,8 +30,9 @@ export function Arena({ worlds }: { worlds: WorldManifest[] }) {
   const [revealChecked, setRevealChecked] = useState(false)
   const [reveal, setReveal] = useState<unknown>(null)
   const [audit, setAudit] = useState<unknown>(null)
+  const [flagReason, setFlagReason] = useState('known_law')
   const selected = challenges.find(c => c.challenge_id === cid)
-  const selectedWorld = worldId || worlds.find(w => !w.builder_version)?.world_id || ''
+  const selectedWorld = availableWorlds.some(w => w.world_id === worldId) ? worldId : availableWorlds[0]?.world_id ?? ''
 
   async function act(work: () => Promise<void>) {
     setBusy(true); setError('')
@@ -60,9 +62,10 @@ export function Arena({ worlds }: { worlds: WorldManifest[] }) {
   function submit(e: FormEvent, work: () => Promise<void>) { e.preventDefault(); void act(work) }
 
   return <div className="arena">
-    <section className="panel"><span className="kicker">07 / BYOA v1</span><h2>Zone Arena</h2>
+    <section className="panel"><span className="kicker">08 / Integrity v1</span><h2>Zone Arena</h2>
       <p>Collega il tuo agente al laboratorio locale. L’agente propone e consegna; l’operatore approva ed esegue ogni lancio. Nessuna chiamata a un modello parte da questa pagina.</p>
       <p className="notice">Challenge comparabili: stesso mondo, probe, budget e limiti; solo esplorazione, senza modifiche o suggerimenti teorici. Un trial per agente e challenge.</p>
+      <p>Il test privato è riservato ad Arena. I punteggi degli agenti restano nascosti fino alla chiusura; un reveal ritira il caso. I mondi senza split sono confronti diagnostici.</p>
       <form onSubmit={e => submit(e, () => refresh())}><label>Token operatore Arena<input type="password" autoComplete="off" required value={token} onChange={e => { setToken(e.target.value); setIssued(null); setShowToken(false) }} /></label>
         <button className="button primary" disabled={busy}>Connetti Arena</button></form>
       <p className="field-hint">Token in memoria; ricaricare la pagina li elimina. Il protocollo per il tuo client è in docs/arena.md.</p>
@@ -73,10 +76,11 @@ export function Arena({ worlds }: { worlds: WorldManifest[] }) {
         const created = await arenaApi.write<ArenaChallenge>('challenges', { world_id: selectedWorld, name }, token)
         await refresh(created.challenge_id)
       })}><label>Nome challenge<input required maxLength={80} value={name} onChange={e => setName(e.target.value)} /></label>
-        <label>Mondo Forge Arena<select required value={selectedWorld} onChange={e => setWorldId(e.target.value)}>{worlds.filter(w => !w.builder_version).map(w => <option key={w.world_id} value={w.world_id}>{w.world_id} · {w.experiment_budget} lanci</option>)}</select></label>
+        <label>Mondo Forge Arena<select required value={selectedWorld} onChange={e => setWorldId(e.target.value)}>{availableWorlds.map(w => <option key={w.world_id} value={w.world_id}>{w.world_id} · {w.experiment_budget} lanci · {w.integrity?.state ?? 'untracked'}</option>)}</select></label>
         <button className="button secondary" disabled={busy || !token || !selectedWorld}>Crea challenge</button></form>
         <label>Challenge selezionata<select value={cid} onChange={e => { setTrial(null); setReveal(null); setRevealChecked(false); void act(() => refresh(e.target.value)) }}><option value="">Seleziona</option>{challenges.map(c => <option key={c.challenge_id} value={c.challenge_id}>{c.name} · {c.closed ? 'chiusa' : 'aperta'}</option>)}</select></label>
         {selected && <><p className="session-id">{cid}</p><p>{selected.rules.experiment_budget} esperimenti · {selected.rules.max_messages} messaggi agente · massimo {selected.rules.max_points} punti per lancio.</p>
+          <p>Integrità: {selected.integrity?.state ?? 'untracked'}</p>{selected.integrity?.manifest_hash && <p className="session-id">Manifest da conservare prima del trial: {selected.integrity.manifest_hash}<br />Commitment del mondo: {selected.integrity.commitment}</p>}
           <button className="button secondary" disabled={busy || selected.closed || trials.some(t => !['scored', 'stopped', 'revealed'].includes(t.status))} onClick={() => void act(async () => { await arenaApi.write(`challenges/${cid}/close`, {}, token); await refresh() })}>Chiudi challenge</button></>}
       </section>
       <section className="panel"><h2>Credenziali degli agenti</h2><form onSubmit={e => submit(e, async () => {
@@ -92,6 +96,8 @@ export function Arena({ worlds }: { worlds: WorldManifest[] }) {
       <p>Avvia il trial dal client BYOA con l’ID challenge e il token agente. La pagina non manda messaggi per conto dell’agente.</p>
       {trials.map(t => <button className="button secondary" key={t.session_id} disabled={busy} onClick={() => void act(async () => { setTrial(await arenaApi.read(`sessions/${t.session_id}`, token)); setReveal(null); setRevealChecked(false) })}>{t.account.name} · {t.status}</button>)}
       {trial && <div><h3>{trial.account.name} · {trial.status}</h3><p className="session-id">{trial.session_id}</p><p>{trial.executed_experiments} lanci · {trial.observations} osservazioni · {trial.messages} messaggi</p>
+        <p>Integrità trial: {trial.integrity?.state ?? 'untracked'} · {trial.integrity?.eligible ? 'test cieco ammissibile' : 'diagnostico o escluso'}. Flag: {trial.integrity?.flags?.join(', ') || 'nessuno'}.</p>
+        <label>Motivo di contaminazione<select value={flagReason} onChange={e => setFlagReason(e.target.value)}><option value="known_law">Legge già nota</option><option value="operator_hint">Suggerimento teorico dell’operatore</option><option value="external_disclosure">Divulgazione esterna</option><option value="protocol_violation">Violazione del protocollo</option></select></label><button className="button danger" disabled={busy || trial.integrity?.flags?.includes(flagReason)} onClick={() => void act(() => trialAction('integrity', { reason: flagReason }))}>Marca contaminazione · irreversibile</button>
         {trial.status === 'awaiting_decision' && <div className="button-row">{(['approve', 'reject'] as const).map(action => <button className={`button ${action === 'approve' ? 'primary' : 'secondary'}`} key={action} disabled={busy} onClick={() => void act(() => trialAction('messages', { message: { type: 'operator_decision', request_id: trial.pending_request_id, action, reason: 'Decisione operativa Arena.' } }))}>{action === 'approve' ? 'Approva richiesta Arena' : 'Rifiuta richiesta Arena'}</button>)}</div>}
         {trial.status === 'awaiting_mode' && <button className="button primary" disabled={busy} onClick={() => void act(() => trialAction('messages', { message: { type: 'execution_mode', request_id: trial.pending_request_id, mode: 'exploration' } }))}>Conferma esplorazione Arena</button>}
         {trial.status === 'ready_to_run' && <button className="button primary" disabled={busy} onClick={() => void act(() => trialAction('run', { request_id: trial.pending_request_id }))}>Esegui esperimento Arena</button>}
@@ -102,7 +108,7 @@ export function Arena({ worlds }: { worlds: WorldManifest[] }) {
         <div className="timeline">{trial.events?.map(event => <EventCard key={event.seq} event={event} />)}</div>
       </div>}
     </section>}
-    {board && <section className="panel"><h2>Leaderboard per dimensione</h2><p>Confronto limitato a questa challenge. Nessun punteggio unico né vincitore complessivo. Metriche mancanti escluse dalla rispettiva classifica; parità allo stesso rango.</p>
+    {board && <section className="panel"><h2>Leaderboard per dimensione</h2><p>Ambito: {board.comparison_scope ?? 'diagnostic_untracked'}. I trial contaminati conservano risultati e risorse, ma sono esclusi dai ranghi.</p><p>Confronto limitato a questa challenge. Nessun punteggio unico né vincitore complessivo. Metriche mancanti escluse dalla rispettiva classifica; parità allo stesso rango.</p>
       <div className="arena-boards">{Object.entries(board.dimensions).map(([dimension, rows]) => <div className="table-scroll" key={dimension}><table><caption>{dimensionNames[dimension] ?? dimension} · valori minori prima</caption><thead><tr><th>Rango</th><th>Agente</th><th>Valore</th></tr></thead><tbody>{rows.length ? rows.map(row => <tr key={row.session_id}><td>{row.rank}</td><td>{board.trials.find(t => t.session_id === row.session_id)?.account.name}</td><td>{fmt(row.value)}</td></tr>) : <tr><td colSpan={3}>Nessun valore disponibile</td></tr>}</tbody></table></div>)}</div>
       <h3>Risorse e arresti</h3><div className="table-scroll"><table><thead><tr><th>Agente</th><th>Stato</th><th>Osservazioni</th><th>Lanci</th><th>Richieste API</th><th>Invalide</th></tr></thead><tbody>{board.trials.map(t => <tr key={t.session_id}><td>{t.account.name}</td><td>{t.status}</td><td>{t.observations}</td><td>{t.executed_experiments}</td><td>{t.resources.agent_requests}</td><td>{t.resources.invalid_requests}</td></tr>)}</tbody></table></div><p className="field-hint">Chiamate LLM, token e costi del client esterno: non misurati. Il numero di richieste API non è un numero di chiamate al modello.</p>
     </section>}

@@ -12,7 +12,10 @@ def add_parser(commands):
     sub = arena.add_subparsers(dest="arena_command", required=True)
     demo = sub.add_parser("demo", help="Ciclo offline completo con operatore simulato, senza chiamate LLM")
     demo.add_argument("--db", type=Path, required=True, help="Nuovo database, non deve esistere")
-    demo.add_argument("--world", type=Path, required=True, help="Record Forge privato, solo per il server")
+    source = demo.add_mutually_exclusive_group(required=True)
+    source.add_argument("--world", type=Path, help="Record Forge privato, solo per il server")
+    source.add_argument("--integrity-pack", type=Path, help="Pacchetto Forge privato: primo caso test")
+    demo.add_argument("--proof-out", type=Path, help="Reveal esplicito dopo chiusura: nuovo file pubblico, ritira il caso")
 
 
 def run_command(args):
@@ -24,9 +27,17 @@ def run_command(args):
     from .world_forge import read_world
     if args.db.exists():
         raise ValidationError("La demo richiede un nuovo database.")
-    record = read_world(args.world)
+    from .integrity_suite import read_pack, records, manifest, verify_reveal
+    pack_path = getattr(args, "integrity_pack", None)
+    pack = read_pack(pack_path) if pack_path else None
+    if pack and pack["kind"] != "forge":
+        raise ValidationError("Arena richiede un pacchetto Forge.")
+    proof_out = getattr(args, "proof_out", None)
+    if proof_out and (not pack or proof_out.exists()):
+        raise ValidationError("Proof richiede un pacchetto Forge e un nuovo file.")
+    record = records(pack, "test")[0] if pack else read_world(args.world)
     operator_token = secrets.token_urlsafe(32)
-    app = create_app(args.db, worlds=[record], operator_token=operator_token,
+    app = create_app(args.db, worlds=[] if pack else [record], integrity_packs=[pack] if pack else [], operator_token=operator_token,
                      rate_limiter=RateLimiter(read=10000, write=10000, run=10000))
     with TestClient(app) as transport:
         operator = ArenaClient(transport, operator_token)
@@ -70,9 +81,18 @@ def run_command(args):
             snapshot = agent.read("sessions/" + sid)
         operator.write("challenges/" + challenge["challenge_id"] + "/close", {}, "demo-close")
         board = agent.read("challenges/" + challenge["challenge_id"] + "/leaderboard")
+        if proof_out:
+            final = operator.read("sessions/" + sid)
+            operator.write(f"sessions/{sid}/reveal", {"expected_version": final["version"], "confirm": "reveal"}, "demo-reveal")
+            proof = operator.read(f"sessions/{sid}/reveal")["integrity_proof"]
+            verify_reveal(manifest(pack), proof, manifest(pack)["sha256"])
+            proof_out.parent.mkdir(parents=True, exist_ok=True)
+            with proof_out.open("x", encoding="utf-8") as stream:
+                json.dump(proof, stream, ensure_ascii=False, indent=2, allow_nan=False)
         operator.write("tokens/" + issued["token_id"] + "/revoke", {}, "demo-revoke")
         revoked = transport.get("/v1/arena/sessions/" + sid, headers=agent.headers()).status_code == 401
-        summary = {"notice": "Baseline offline, operatore simulato. Nessun LLM reale; nessun reveal.",
+        summary = {"notice": "Baseline offline, operatore simulato. Nessun LLM reale.",
+                   "comparison_scope": board["comparison_scope"], "revealed": bool(proof_out),
                    "challenge_id": challenge["challenge_id"], "session_id": sid, "status": snapshot["status"],
                    "experiments": snapshot["executed_experiments"], "observations": snapshot["observations"],
                    "baseline_calls": calls, "resources": snapshot["resources"],

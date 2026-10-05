@@ -81,3 +81,48 @@ git diff --check
 ```
 
 È disponibile anche `pnpm test:browser:arena`. Per ripetere la preparazione o la demo scegli nuovi percorsi. Una build intermedia ha rilevato il tipo TypeScript troppo restrittivo per una chiave idempotente non UUID; il client ora accetta tutte le stringhe previste dal contratto e build/test finali passano. Non sono state usate credenziali di provider, chiamate API reali, download di browser/modelli o deployment. Il pilot BYOA con un vero modello, i consumi esterni e l'integrità competitiva restano non validati; [stato e prossimi passi](status.md).
+
+
+## Integrity — fase 8, 4 ottobre 2026
+
+Verifica finale: **181 test Python passati** (103,596 s), inclusi **17 test Integrity**, **15 test frontend**, controllo TypeScript e build Vite. Bundle 278,11 kB JavaScript / 84,73 kB gzip: la scansione non trova credenziali sintetiche, sentinelle private, `probe_truth`, `secret_grid`, `generator_seed` o percorsi dei pacchetti privati. `git diff --check` passa.
+
+I test aggiuntivi coprono split disgiunti e deterministici, manifest senza verità/hash grezzi test/nonce, commitment e pin originario, tampering della proof, conservazione della forma numerica dopo una riserializzazione JavaScript, duplicati fisici indipendenti da ID e ordine AST, JSON ambiguo/non finito/grande, binding benchmark v0.3 e quattro condizioni, aggregazione mista rifiutata. Il backend verifica riserva test, alias validi e importazioni preesistenti rifiutati atomicamente, embargo su submission/replay/stato, flag operatore immutabili con risultati grezzi conservati, gate di chiusura/reveal, ritiro e provenienza storica, reimportazione, sentinelle nei payload provider, rate persistenti su lookup invalidi/receipt/token ruotati/riavvii, scadenza della finestra e soglia di 20 invalidi.
+
+Sono passati i comandi completi di [Integrity](integrity.md): preparazione/controllo Forge livelli 1–5, budget 3, seed demo 800123; demo Arena con primo caso test, tre esperimenti/tre osservazioni/nove passi di baseline, freeze/scoring, chiusura, reveal/proof e revoca; verifica CLI contro manifest `129aa6e48cd66402a1d728c3ff810ab716532f7669f9856feb713f6b5c965eb2`. Sessione definitiva della demo: `fd6ec3e7748f70cfc3c5cf20b5f73d44`; RMSE complessivo 0,02668079, interpolation 0,01306409, extrapolation 0,03539856. Questi valori sono solo un controllo del software.
+
+Pacchetto benchmark v0.3: seed demo 810456, budget 1, manifest `05283f452baf7530a442080aa65100e212d29357b0d40ad6a7fe15da31323d3c`. Quattro trial `simulated`, uno per condizione sul caso `wda7c7b64c387cfd5`, completati senza invalidi; esperimenti rispettivamente 0/1/1/1 e chiamate fixture 3/3/3/4. Aggregazione e report passano e riportano la provenienza. Il fixture conosce la legge; non è apprendimento e non entra in una valutazione scientifica cieca.
+
+Smoke finale in Edge già installato, Vite/FastAPI/SQLite reali e messaggi BYOA sintetici: challenge `3d16a9aa1a0a911b5b8c436b9585561c`, sessione `9fde40e6550807433737439750ebc538`. Un lancio, tre punti, ipotesi, conclusione e submission; score agente nullo prima della chiusura; flag `known_law` dalla UI, grezzi mantenuti e ranghi vuoti; chiusura, score visibile, revoca con 401, reveal da operatore e proof verificata successivamente dalla CLI. Nessun errore browser, storage vuoto, nessun overflow a 390 pixel. Screenshot in `benchmark_data/web-qa` ignorata da Git.
+
+La prima verifica della proof salvata da JavaScript ha rilevato conversioni `0.0` → `0` che cambiavano il commitment. Il formato definitivo preserva `record_json` come stringa canonica; test dedicato e nuova proof browser/CLI passano. Una prova iniziale si è fermata prima del trial perché la porta 8765 apparteneva a un altro progetto, lasciato in esecuzione. Backend di test su 8766 e proxy Vite configurato con `ZONE_BACKEND_URL`; solo i server di prova sono stati arrestati.
+
+Comandi finali, dalla radice (i percorsi delle ripetizioni erano nuovi):
+
+```powershell
+$env:MPLCONFIGDIR = Join-Path (Get-Location) 'benchmark_data/test-cache'
+.\.venv\Scripts\python.exe -m unittest discover -s tests -q
+.\.venv\Scripts\python.exe -m unittest tests.test_integrity -q
+.\.venv\Scripts\python.exe -m hidden_lab serve --help
+# Preparazione, controllo, demo, quattro trial, aggregazione e report: docs/integrity.md.
+# Backend di prova con token sintetico nell'ambiente e un DB dedicato:
+.\.venv\Scripts\python.exe -m hidden_lab serve --db benchmark_data/integrity-forge-demo/browser-v2.sqlite3 --integrity-pack benchmark_data/integrity-forge-demo/private/pack.json --port 8766
+cd frontend
+pnpm test
+pnpm build
+$env:ZONE_BACKEND_URL = 'http://127.0.0.1:8766'
+pnpm dev --host 127.0.0.1
+# In un altro terminale nella cartella frontend, stesso token di prova del backend:
+$env:ZONE_SMOKE_OPERATOR_TOKEN = '<token sintetico del backend di prova>'
+$env:ZONE_SMOKE_INTEGRITY = '1'
+$env:ZONE_SMOKE_PROOF_OUT = '../benchmark_data/web-qa/integrity-reveal-v3.json'
+$env:ZONE_BROWSER_EXECUTABLE = 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
+node scripts/smoke-arena.mjs
+cd ..
+.\.venv\Scripts\python.exe -m hidden_lab integrity verify-reveal --manifest benchmark_data/integrity-forge-demo/public/manifest.json --proof benchmark_data/web-qa/integrity-reveal-v3.json --expected-manifest-hash 129aa6e48cd66402a1d728c3ff810ab716532f7669f9856feb713f6b5c965eb2
+git diff --check
+```
+
+Per ripetere lo smoke, usare DB, caso test e proof nuovi: il reveal ritira il caso e la scrittura della proof non sovrascrive file esistenti. Un seed demo noto non è adatto a un pilot cieco. Nessuna API reale o credenziale provider, download di modelli, pubblicazione o deployment; nessun runner BYOA reale validato. Il [threat model](threat-model.md) conserva esplicitamente fiducia nell'operatore/host, equivalenza solo euristica, contaminazione esterna e identità multiple non rilevate.
+
+File interessati: nuovi `integrity_suite.py`, `integrity_store.py`, `integrity_cli.py`, `tests/test_integrity.py`, `docs/integrity.md`, `docs/threat-model.md` e ADR 0008; integrazioni in CLI/server, repository/backend, Arena/store/demo, trial/CLI/report benchmark; UI/types/API/test Arena, Vite e smoke; README, ROADMAP, architettura, guide Arena/backend/benchmark, stato e verifiche.

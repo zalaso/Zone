@@ -54,6 +54,7 @@ export type WorldManifest = {
   world_id: string
   level?: number
   experiment_budget: number
+  integrity?: { state: string; split: string | null }
   [key: string]: unknown
 }
 

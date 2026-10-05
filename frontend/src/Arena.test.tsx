@@ -44,3 +44,27 @@ it('mostra classifiche separate, quote e controllo di revoca', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Revoca token token0123456' }))
   await waitFor(() => expect(arenaApi.write).toHaveBeenCalledWith('tokens/token0123456789/revoke', {}, 'operator-test'))
 })
+
+it('marca la contaminazione solo con un clic operatore e mostra il confronto diagnostico', async () => {
+  render(<Arena worlds={[{ world_id: 'w1234567890abcdef', experiment_budget: 2 }]} />)
+  fireEvent.change(screen.getByLabelText('Token operatore Arena'), { target: { value: 'operator-test' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Connetti Arena' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Agente offline · awaiting_decision' }))
+  await screen.findByText(/Ambito: diagnostic_untracked/)
+  expect(arenaApi.write).not.toHaveBeenCalled()
+  fireEvent.change(screen.getByLabelText('Motivo di contaminazione'), { target: { value: 'operator_hint' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Marca contaminazione · irreversibile' }))
+  await waitFor(() => expect(arenaApi.write).toHaveBeenCalledWith('sessions/session/integrity', { expected_version: 2, reason: 'operator_hint' }, 'operator-test'))
+  expect(fake.runCalls).toBe(0)
+})
+
+it('offre solo test nuovi e mondi diagnostici, esclude pratica pubblica e casi ritirati', () => {
+  render(<Arena worlds={[
+    { world_id: 'public', experiment_budget: 3, integrity: { state: 'public_practice', split: 'train' } },
+    { world_id: 'retired', experiment_budget: 3, integrity: { state: 'retired', split: 'test' } },
+    { world_id: 'blind', experiment_budget: 3, integrity: { state: 'blind_test', split: 'test' } },
+  ]} />)
+  const choices = screen.getByLabelText('Mondo Forge Arena')
+  expect(choices).toHaveValue('blind')
+  expect(choices.querySelectorAll('option')).toHaveLength(1)
+})

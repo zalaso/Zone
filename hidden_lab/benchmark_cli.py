@@ -33,6 +33,7 @@ def add_parser(commands):
     check.add_argument("--manifest", type=Path)
     trial = sub.add_parser("trial", help="Esegue un solo mondo, condizione e ripetizione")
     trial.add_argument("--suite", required=True, type=Path)
+    trial.add_argument("--integrity-pack", type=Path, help="Pacchetto privato v1; verifica split e registra provenienza")
     trial.add_argument("--world", required=True)
     trial.add_argument("--condition", required=True, choices=CONDITIONS)
     trial.add_argument("--provider", required=True, choices=(*MODEL_ENV, "simulated", "baseline"))
@@ -95,6 +96,10 @@ def run_command(args):
     if command != "trial":
         raise ValidationError("Comando benchmark non valido.")
     suite = read_suite(args.suite)
+    integrity = None
+    if getattr(args, "integrity_pack", None) is not None:
+        from .integrity_suite import benchmark_binding, read_pack
+        integrity = benchmark_binding(read_pack(args.integrity_pack), suite, args.world)
     worlds = [item for item in suite["worlds"] if item["id"] == args.world]
     if len(worlds) != 1:
         raise ValidationError("ID mondo non presente nella suite.")
@@ -147,7 +152,7 @@ def run_command(args):
                 return 2
         trial = BenchmarkTrial(args.out, suite, args.world, args.condition, client, settings,
                                repetition=args.repeat, trial_seed=args.trial_seed,
-                               contaminated=args.contaminated)
+                               contaminated=args.contaminated, integrity=integrity)
         result = trial.run()
         print(f"Trial {result['status']}: {result['executed_experiments']} esperimenti, "
               f"{result['model_calls']} chiamate, {result['invalid_responses']} risposte non valide. "

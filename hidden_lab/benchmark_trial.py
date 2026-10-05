@@ -36,7 +36,7 @@ def source_fingerprint():
 
 class BenchmarkTrial:
     def __init__(self, directory, suite, world_id, condition, client, settings, *, repetition=0,
-                 trial_seed=0, contaminated=False):
+                 trial_seed=0, contaminated=False, integrity=None):
         validate_suite(suite)
         if condition not in CONDITIONS:
             raise ValidationError("Condizione benchmark non valida.")
@@ -61,6 +61,7 @@ class BenchmarkTrial:
         self.repetition = repetition
         self.trial_seed = trial_seed
         self.contaminated = False
+        self.integrity = copy.deepcopy(integrity)
         self.events = []
         self.observations = {}
         self.hypotheses = {}
@@ -317,5 +318,7 @@ class BenchmarkTrial:
                   "identification_version": IDENTIFICATION_VERSION if self.identification is not None else None,
                   "api_cost_usd": 0.0 if self.client.provider in ("simulated", "baseline", "ollama") else None,
                   "trajectory_position_rmse": None}
+        if self.integrity is not None:
+            result["integrity"] = {**self.integrity, "oracle_fixture": self.client.provider == "simulated"}
         save_new(self.directory / "result.json", result)
         return result

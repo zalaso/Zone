@@ -45,6 +45,9 @@ class ArenaStore:
                 CREATE TABLE IF NOT EXISTS arena_audit (
                     seq INTEGER PRIMARY KEY AUTOINCREMENT, time REAL NOT NULL, principal TEXT NOT NULL,
                     action TEXT NOT NULL, status INTEGER NOT NULL, key_hash TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS arena_rates (
+                    agent_id TEXT PRIMARY KEY REFERENCES arena_agents(id), window REAL NOT NULL,
+                    reads INTEGER NOT NULL DEFAULT 0, writes INTEGER NOT NULL DEFAULT 0);
             """)
 
     def authenticate(self, db, supplied, operator=False):
@@ -87,9 +90,28 @@ class ArenaStore:
 
     def read(self, supplied, callback, *, operator=False):
         with self.repo._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            principal = self.authenticate(db, supplied, operator)
+            self.admit(db, principal, "reads")
+            db.commit()  # Invalid resource lookups must still consume rate admission.
             db.execute("BEGIN")
             principal = self.authenticate(db, supplied, operator)
             return callback(db, principal)
+
+    def admit(self, db, principal, bucket):
+        if principal == "operator":
+            return
+        if bucket not in ("reads", "writes"):
+            raise ValueError("Unknown rate bucket")
+        now = self.clock()
+        row = db.execute("SELECT window,reads,writes FROM arena_rates WHERE agent_id=?", (principal,)).fetchone()
+        if row is None or now - row[0] >= 60:
+            db.execute("INSERT OR REPLACE INTO arena_rates VALUES(?,?,0,0)", (principal, now))
+            row = (now, 0, 0)
+        count = row[1 if bucket == "reads" else 2]
+        if count >= (120 if bucket == "reads" else 30):
+            raise HTTPException(429, "Limite persistente Arena per account raggiunto.")
+        db.execute(f"UPDATE arena_rates SET {bucket}={bucket}+1 WHERE agent_id=?", (principal,))
 
     def perform(self, supplied, key, path, body, callback, *, operator=False):
         if not isinstance(key, str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{8,128}", key):
@@ -99,6 +121,10 @@ class ArenaStore:
         with self.repo._connect() as db:
             db.execute("BEGIN IMMEDIATE")
             principal = self.authenticate(db, supplied, operator)
+            self.admit(db, principal, "writes")
+            db.commit()
+            db.execute("BEGIN IMMEDIATE")
+            principal = self.authenticate(db, supplied, operator)
             row = db.execute("SELECT path,body_hash,status,response_json FROM arena_receipts "
                              "WHERE principal=? AND key_hash=?", (principal, key_hash)).fetchone()
             if row:
@@ -106,6 +132,8 @@ class ArenaStore:
                     raise HTTPException(409, "Chiave idempotente già usata per una richiesta diversa.")
                 return row[2], json.loads(row[3]), None, (principal, key_hash)
             if principal != "operator":
+                if self.agent(db, principal)["usage"]["invalid"] >= 20:
+                    raise HTTPException(429, "Troppe risposte invalide; l'operatore deve revocare il token.")
                 self.charge(db, principal, "requests")
             db.execute("SAVEPOINT action")
             try:

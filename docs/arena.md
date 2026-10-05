@@ -64,7 +64,8 @@ Chiudi la challenge quando tutti i trial hanno un risultato o sono arrestati. I 
 | `GET /challenges/{id}/leaderboard` | operatore; agente dopo chiusura | Metriche, classifiche distinte e trial grezzi |
 | `GET /audit?after=0` | operatore | Massimo 100 record, continuare da `next_after` |
 | `POST /sessions/{id}/reveal` | operatore | `expected_version`, `confirm: "reveal"`; registra la decisione |
-| `GET /sessions/{id}/reveal` | operatore dopo reveal | Record privato e audit scientifico |
+| `GET /sessions/{id}/reveal` | operatore dopo reveal | Record privato, audit scientifico e proof Integrity se presente |
+| `POST /sessions/{id}/integrity` | operatore | `expected_version`, `reason`: flag append-only, esclude dai ranghi |
 
 Submission minima:
 
@@ -110,4 +111,10 @@ Ogni challenge fissa hash del mondo e dei probe, versione Arena/scorer/griglia, 
 
 Otto classifiche indipendenti: RMSE numerico complessivo, interpolation, extrapolation, RMSE funzionale AST, nodi AST, dipendenze omesse, dipendenze spurie, NLL di calibrazione. Valori minori prima, parità allo stesso rango; metriche mancanti escluse. **Nessun punteggio combinato.** Una complessità minore, da sola, non identifica una legge corretta. Restano disponibili i punteggi grezzi, errori massimi/normalizzati per categoria, calibrazione, stato d'arresto, numero di osservazioni/esperimenti/messaggi e richieste invalide per trial. I consumi account sono presentati separatamente. Costi, token e chiamate al modello del client esterno sono `null`, perché non osservabili dal server; il modello è una dichiarazione non verificata.
 
-Arena si appoggia a `SQLiteRepository`; un repository diverso continua a funzionare per il laboratorio, ma deve fornire una persistenza Arena dedicata per esporre queste route. Server e frontend restano su loopback. Non ci sono ancora identità pubbliche, TLS, storage distribuito, migrazioni versionate, pulizia dei receipt o protezioni contro un host/client compromesso. L'integrità competitiva completa, split pubblici/privati, contaminazione, duplicati e abuso sono **fase 8**. Qualità open source e preparazione alla distribuzione sono **fasi 9–10**. Nessun deployment è stato effettuato.
+Arena si appoggia a `SQLiteRepository`; un repository diverso continua a funzionare per il laboratorio, ma deve fornire una persistenza Arena dedicata per esporre queste route. Server e frontend restano su loopback. Non ci sono ancora identità pubbliche, TLS, storage distribuito, migrazioni versionate, pulizia dei receipt o protezioni contro un host/client compromesso. La **fase 8** implementa split pubblici/privati, commitment/reveal, ritiro, flag e duplicati euristici, embargo dei punteggi e rate account persistenti: vedi [Integrity](integrity.md) e [threat model](threat-model.md). Non attesta il comportamento del client esterno. Qualità open source e preparazione alla distribuzione sono **fasi 9–10**. Nessun deployment è stato effettuato.
+
+## Provenienza e limiti persistenti — fase 8
+
+Gli esempi storici con `--world` restano diagnostici. Per un test privato usare `integrity prepare` e `serve --integrity-pack`, seguendo [Integrity](integrity.md); pubblicare solo train/development e conservare il manifest prima del trial. La UI esclude dalla selezione pubblici e ritirati, ma il server resta il controllo autorevole. Challenge su test: una per caso, score nascosto all’agente fino alla chiusura, reveal controllato e ritiro. Il DTO sostituisce gli hash grezzi mondo/probe con il commitment salato. Il manifest e gli split pubblici sono disponibili sotto `/v1/integrity`; non sono allegati ai payload dei provider.
+
+Il nuovo rate SQLite è per account: 120 letture/30 scritture in 60 secondi, inclusi lookup errati e receipt ripetuti. Token ruotati e processi riavviati condividono i conteggi. Dopo 20 mutazioni invalide nuove chiavi vengono bloccate; l’operatore può arrestare e revocare. I flag `operator_hint`, `known_law`, `external_disclosure`, `protocol_violation` sono immutabili; i trial restano nei grezzi ma senza rango. Il trial storico non perde la provenienza per il solo reveal successivo.

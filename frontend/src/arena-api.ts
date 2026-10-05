@@ -1,9 +1,15 @@
 import { request } from './api'
 import type { LabEvent, Scores, SessionStatus } from './types'
 
+export type IntegrityInfo = {
+  state: string; split: string | null; manifest_hash: string | null; commitment: string | null
+  eligible?: boolean; flags?: string[]
+}
+
 export type ArenaChallenge = {
   challenge_id: string; world_id: string; name: string; closed: boolean
   rules: { experiment_budget: number; max_messages: number; max_points: number; execution_policy: string }
+  integrity?: IntegrityInfo
 }
 export type ArenaAgent = {
   agent_id: string; name: string; model: string; kind: string
@@ -14,10 +20,12 @@ export type ArenaAgent = {
 export type ArenaTrial = SessionStatus & {
   challenge_id: string; agent_id: string; account: ArenaAgent; messages: number; observations: number
   scores: Scores | null; events?: LabEvent[]
+  integrity?: IntegrityInfo
   resources: { agent_requests: number; invalid_requests: number; external_model_calls: null; external_cost: null }
 }
 export type ArenaBoard = {
   challenge: ArenaChallenge; trials: ArenaTrial[]
+  comparison_scope?: string
   dimensions: Record<string, { session_id: string; value: number; rank: number }[]>
 }
 

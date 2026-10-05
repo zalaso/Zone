@@ -98,6 +98,8 @@ def main(argv=None):
     add_server_parser(commands)
     from .arena_cli import add_parser as add_arena_parser
     add_arena_parser(commands)
+    from .integrity_cli import add_parser as add_integrity_parser
+    add_integrity_parser(commands)
     args = parser.parse_args(argv)
     try:
         if args.command == "plot":
@@ -117,6 +119,9 @@ def main(argv=None):
             return run_command(args)
         if args.command == "arena":
             from .arena_cli import run_command
+            return run_command(args)
+        if args.command == "integrity":
+            from .integrity_cli import run_command
             return run_command(args)
         config = parse_config(decode(args.config.read_text(encoding="utf-8-sig")))
         if args.command == "investigate":

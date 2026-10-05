@@ -17,12 +17,14 @@ from .identification import IDENTIFICATION_VERSION, identification_material, sco
 from .protocol import ValidationError, apparatus, observation_times, require_keys
 from .simulator import parse_config
 from .local_worlds import digest
+from .integrity_store import IntegrityCatalog
 
 
 def install_arena(app, repository, operator_token, *, clock=None):
     # Lazy import avoids a circular module dependency; shared public projection is authoritative.
     from .backend import OPERATOR_TYPES, _body, _public_event, _version
     store = ArenaStore(repository, operator_token, clock)
+    catalog = IntegrityCatalog(repository)
     app.state.arena = store
 
     def headers(request):
@@ -37,10 +39,14 @@ def install_arena(app, repository, operator_token, *, clock=None):
         if not row:
             raise NotFoundError()
         return {"challenge_id": cid, "world_id": row[0], "name": row[1],
-                "rules": json.loads(row[2]), "closed": bool(row[3])}
+                "rules": json.loads(row[2]), "closed": bool(row[3]), "integrity": catalog.case(db, row[0])}
 
     def public_challenge(value):
-        return {**value, "apparatus": apparatus(value["rules"]["experiment_budget"])}
+        rules = value["rules"]
+        if value["integrity"]["split"] == "test":
+            rules = {key: item for key, item in rules.items() if key not in ("world_hash", "probes_hash")}
+            rules = {**rules, "world_commitment": value["integrity"]["commitment"], "manifest_hash": value["integrity"]["manifest_hash"]}
+        return {**value, "rules": rules, "apparatus": apparatus(rules["experiment_budget"])}
 
     def trial(db, sid, principal):
         row = db.execute("SELECT challenge_id,agent_id,cohort_hash FROM arena_trials WHERE session_id=?", (sid,)).fetchone()
@@ -66,16 +72,24 @@ def install_arena(app, repository, operator_token, *, clock=None):
     def status(db, sid, principal, *, events=False):
         stored, state, ch, aid = trial(db, sid, principal)
         value = {"session_id": sid, "challenge_id": ch["challenge_id"], "agent_id": aid,
-                 **state.public_status(), "rules": ch["rules"],
+                 **state.public_status(), "rules": public_challenge(ch)["rules"],
                  "messages": sum(e["actor"] == "agent" for e in stored["events"]),
                  "observations": len(state.observations), "scores": state.score,
                  "account": store.agent(db, aid)}
+        value["integrity"] = catalog.trial_info(db, sid, stored["profile"])
+        embargo = value["integrity"]["state"] == "blind_test" and not ch["closed"] and principal != "operator"
+        if embargo:
+            value["scores"] = None
         calls, invalid = db.execute("SELECT COUNT(*),COALESCE(SUM(status>=400),0) FROM arena_audit "
             "WHERE principal=? AND action LIKE ?", (aid, f"/v1/arena/sessions/{sid}/%")).fetchone()
         value["resources"] = {"agent_requests": calls, "invalid_requests": invalid,
                               "external_model_calls": None, "external_tokens": None, "external_cost": None}
         if events:
             value["events"] = [_public_event(e) for e in stored["events"]]
+            if embargo:
+                for event in value["events"]:
+                    if event["message"]["type"] == "result_recorded":
+                        event["message"] = {"type": "result_recorded", "scores": None}
         return value
 
     @app.get("/v1/arena/contract")
@@ -139,6 +153,8 @@ def install_arena(app, repository, operator_token, *, clock=None):
             for name, path in dimensions.items():
                 measured = []
                 for value in values:
+                    if not value["integrity"]["ranking_allowed"]:
+                        continue
                     metric = value["scores"]
                     for key in path:
                         metric = metric.get(key) if isinstance(metric, dict) else None
@@ -149,6 +165,7 @@ def install_arena(app, repository, operator_token, *, clock=None):
                     item["rank"] = 1 + sum(other["value"] < item["value"] for other in measured[:index])
                 boards[name] = measured
             return {"challenge": public_challenge(ch), "dimensions": boards, "trials": values,
+                    "comparison_scope": "blind_test" if values and all(v["integrity"]["state"] == "blind_test" for v in values) else "diagnostic_untracked",
                     "notice": "Metriche separate, nessun punteggio combinato. Modello dichiarato, non attestato; costi esterni non misurati."}
         return store.read(headers(request), read)
 
@@ -161,6 +178,7 @@ def install_arena(app, repository, operator_token, *, clock=None):
             if not row:
                 raise NotFoundError()
             record, manifest = json.loads(row[0]), json.loads(row[1])
+            catalog.challenge_admission(db, record)
             if "builder_version" in manifest:
                 raise ValidationError("Arena accetta solo mondi Forge, senza autore della legge.")
             if db.execute("SELECT 1 FROM events e JOIN sessions s ON s.id=e.session_id WHERE s.world_id=? "
@@ -214,18 +232,22 @@ def install_arena(app, repository, operator_token, *, clock=None):
                 raise ValidationError("Un solo trial per agente e challenge.")
             store.charge(db, principal, "sessions")
             sid = repository._insert_session(db, ch["world_id"], sha256(secrets.token_bytes(32)).hexdigest(),
-                    apparatus(ch["rules"]["experiment_budget"]), {"mode": "arena", "managed_agent": False})
+                    apparatus(ch["rules"]["experiment_budget"]), {"mode": "arena", "managed_agent": False,
+                    "integrity": catalog.case(db, ch["world_id"])})
             db.execute("INSERT INTO arena_trials VALUES(?,?,?,?)", (sid, ch["challenge_id"], principal, fingerprint(ch["rules"])))
             return 201, status(db, sid, principal, events=True), None
         stored, state, ch, aid = trial(db, resource, principal)
         fields = {"messages": ("message",), "run": ("request_id",), "stop": ("reason",),
-                  "submission": ("submission",), "score": (), "reveal": ("confirm",)}
+                  "submission": ("submission",), "score": (), "reveal": ("confirm",), "integrity": ("reason",)}
         require_keys(body, ("expected_version", *fields[kind]))
         if state.version != _version(body["expected_version"]):
             raise ConflictError()
-        if kind != "reveal" and ch["closed"]:
+        if kind not in ("reveal", "integrity") and ch["closed"]:
             raise ValidationError("Challenge chiusa.")
-        if kind == "messages":
+        if kind == "integrity":
+            catalog.flag(db, resource, body["reason"])
+            repository._append(db, resource, state.version, [("operator", {"type": "integrity_flagged", "reason": body["reason"]})])
+        elif kind == "messages":
             message = state.accept_message(body["message"], "operator" if principal == "operator" else "agent")
             if principal != "operator" and sum(e["actor"] == "agent" for e in stored["events"]) >= ch["rules"]["max_messages"] - 1:
                 raise ValidationError("Limite messaggi: riserva l'ultimo posto alla submission o arresta il trial.")
@@ -286,7 +308,7 @@ def install_arena(app, repository, operator_token, *, clock=None):
             code, value, _work, _receipt = store.perform(supplied, request.headers.get("idempotency-key"),
                 request.url.path, {"invalid_transport": code}, invalid_body)
             return JSONResponse(value, status_code=code)
-        operator = kind in ("challenges", "agents", "tokens", "revoke", "close", "run", "stop", "score", "reveal")
+        operator = kind in ("challenges", "agents", "tokens", "revoke", "close", "run", "stop", "score", "reveal", "integrity")
         if kind == "messages":
             operator = isinstance(body.get("message"), dict) and body["message"].get("type") in OPERATOR_TYPES
         code, value, work, receipt = store.perform(supplied, request.headers.get("idempotency-key"), request.url.path, body,
@@ -300,7 +322,7 @@ def install_arena(app, repository, operator_token, *, clock=None):
                                                       state.predictions.get(started["request_id"]))
                     def commit(db):
                         repository._append(db, sid, version, entries)
-                        return status(db, sid, "operator")
+                        return status(db, sid, receipt[0])
                 else:
                     record = stored["record"]
                     state = LabState(stored["events"], record["config"]["experiment_budget"], stored["score"])
@@ -309,7 +331,7 @@ def install_arena(app, repository, operator_token, *, clock=None):
                         identification_material(record["config"]["seed"], record["world_id"], record["sha256"]))
                     def commit(db):
                         repository._save_score(db, sid, version, scores, private_audit)
-                        return status(db, sid, "operator")
+                        return status(db, sid, receipt[0])
                 code, value = store.complete(receipt, commit)
             except Exception:
                 # Durable receipt remains 202. Replaying it only returns state; never repeats a run.
@@ -343,7 +365,7 @@ def install_arena(app, repository, operator_token, *, clock=None):
 
     @app.post("/v1/arena/sessions/{sid}/{kind}")
     async def session_action(sid: str, kind: str, request: Request):
-        if kind not in ("messages", "run", "stop", "submission", "score", "reveal"):
+        if kind not in ("messages", "run", "stop", "submission", "score", "reveal", "integrity"):
             raise NotFoundError()
         return await mutate(request, kind, sid)
 
@@ -353,7 +375,22 @@ def install_arena(app, repository, operator_token, *, clock=None):
             stored, state, _ch, _aid = trial(db, sid, p)
             if not state.revealed:
                 raise NotFoundError()
-            return {"session_id": sid, "world": stored["record"], "audit": stored["audit"]}
+            return {"session_id": sid, "world": stored["record"], "audit": stored["audit"], "integrity_proof": catalog.proof(db, stored["world_id"])}
         return store.read(headers(request), read, operator=True)
+
+    @app.get("/v1/integrity/manifests")
+    async def integrity_manifests():
+        with repository._connect() as db:
+            return {"manifests": [json.loads(row[0]) for row in db.execute("SELECT manifest_json FROM integrity_packs ORDER BY id")]}
+
+    @app.get("/v1/integrity/packs/{pid}/{split}")
+    async def public_split(pid: str, split: str):
+        if split not in ("train", "development") or not re.fullmatch(r"i[0-9a-f]{16}", pid):
+            raise NotFoundError()
+        with repository._connect() as db:
+            row = db.execute("SELECT private_json FROM integrity_packs WHERE id=?", (pid,)).fetchone()
+            if not row:
+                raise NotFoundError()
+            return json.loads(row[0])["splits"][split]
 
     return store

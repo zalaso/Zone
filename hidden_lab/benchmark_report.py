@@ -166,6 +166,10 @@ def aggregate_trials(root, include_contaminated=False):
     if len(trial_ids) != len(set(trial_ids)):
         raise ValidationError("Trial duplicato.")
     selected = [item for item in results if include_contaminated or not item["contaminated"]]
+    scopes = {(item.get("integrity") or {}).get("manifest_hash", "untracked") + ":" +
+              (item.get("integrity") or {}).get("split", "untracked") for item in selected}
+    if len(scopes) > 1:
+        raise ValidationError("Non aggregare split, manifest integrità o trial non tracciati diversi nello stesso report.")
     if len({item["benchmark_version"] for item in selected}) > 1:
         raise ValidationError("Non aggregare trial di versioni benchmark diverse nello stesso report.")
     by_condition = {}
@@ -234,7 +238,7 @@ def aggregate_trials(root, include_contaminated=False):
         if len(conditions) < 2:
             continue
         mismatch = [field for field in ("experiment_budget", "probe_hash", "limits", "world_config_hash",
-                                        "provider_config_hash", "code_version", "code_hash")
+                                        "provider_config_hash", "code_version", "code_hash", "integrity")
                     if len({json.dumps(item.get(field), sort_keys=True) for item in group}) > 1]
         if mismatch:
             rejected_pairs.append({"world_id": key[2], "repetition": key[3],
@@ -270,6 +274,7 @@ def aggregate_trials(root, include_contaminated=False):
                                         "condition": condition, "executed_experiments": executed,
                                         "acceleration_rmse": _stats(values)})
     return {"report_version": "0.3", "trial_count": len(results), "included_count": len(selected),
+            "integrity_scope": next(iter(scopes), "untracked"),
             "excluded_contaminated": len(results) - len(selected), "include_contaminated": include_contaminated,
             "trials": selected, "by_condition": by_condition, "by_model_condition": by_model_condition,
             "paired": paired,
@@ -286,6 +291,7 @@ def render_report(data):
     lines = ["# Zone Benchmark v0.3 — report descrittivo", "",
              f"Trial inclusi: {data['included_count']} di {data['trial_count']}; contaminati esclusi: {data['excluded_contaminated']}.",
              "Fixture e baseline offline non sono modelli LLM. Nessuna inferenza di superiorità statistica.",
+             f"Provenienza split/manifest: {data.get('integrity_scope', 'untracked')}. I fixture oracolo non sono valutazioni cieche.",
              "Confronto principale: active vs passive_sequential; passive_fixed è una diagnosi batch.",
              f"Gruppi appaiati ambigui: {data['ambiguous_pair_groups']}; rifiutati per configurazione: {len(data.get('rejected_pair_groups', []))}.", "",
              "## Trial grezzi", "",
