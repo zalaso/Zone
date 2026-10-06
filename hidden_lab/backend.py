@@ -103,7 +103,7 @@ def _version(value):
 
 def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None = None,
                operator_token=None, rate_limiter=None, agent_client=None, agent_settings=None,
-               day_clock=None, integrity_packs=()):
+               day_clock=None, integrity_packs=(), static_dir=None):
     """App locale: baseline offline predefinita, provider reale solo se iniettato esplicitamente."""
     token = operator_token if operator_token is not None else os.environ.get("ZONE_OPERATOR_TOKEN")
     if not isinstance(token, str) or len(token) < 32:
@@ -140,7 +140,7 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
 
     @app.middleware("http")
     async def limit_requests(request, call_next):
-        if request.url.path.startswith("/v1/"):
+        if request.url.path.startswith(("/v1/", "/health/")):
             bucket = ("run" if request.url.path.endswith("/run") and request.method == "POST" else
                       "read" if request.method in ("GET", "HEAD") else "write")
             address = request.client.host if request.client else "unknown"
@@ -577,4 +577,9 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
     if isinstance(repository, SQLiteRepository):
         from .arena import install_arena
         install_arena(app, repository, token)
+    from .runtime_ops import install_operations
+    install_operations(app, repository)
+    if static_dir is not None:
+        from .static_web import mount_web
+        mount_web(app, static_dir)
     return app

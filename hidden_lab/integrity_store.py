@@ -2,25 +2,11 @@
 
 import json
 
-from .benchmark_suite import canonical, digest
+from .benchmark_suite import canonical
 from .integrity_suite import SPLITS, duplicate, manifest, physics_fingerprint, records, reveal_proof, world_id
 from .protocol import ValidationError
 
 REASONS = ("operator_hint", "known_law", "external_disclosure", "protocol_violation")
-
-
-def install_schema(db):
-    db.executescript("""
-        CREATE TABLE IF NOT EXISTS integrity_packs (
-            id TEXT PRIMARY KEY, manifest_json TEXT NOT NULL, private_json TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS integrity_cases (
-            id TEXT PRIMARY KEY, pack_id TEXT NOT NULL REFERENCES integrity_packs(id),
-            split TEXT NOT NULL, record_json TEXT NOT NULL, fingerprint_json TEXT NOT NULL,
-            disclosed INTEGER NOT NULL DEFAULT 0);
-        CREATE TABLE IF NOT EXISTS integrity_flags (
-            session_id TEXT NOT NULL REFERENCES sessions(id), reason TEXT NOT NULL,
-            PRIMARY KEY(session_id,reason));
-    """)
 
 
 def _exists(db, name):

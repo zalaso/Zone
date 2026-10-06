@@ -1,0 +1,88 @@
+name: Offline quality
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: offline-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  python:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.12']
+    env:
+      MPLBACKEND: Agg
+      MPLCONFIGDIR: ${{ github.workspace }}/benchmark_data/mpl-cache
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -c constraints-ci.txt -e ".[backend,all-llm,dev]"
+      - run: python -m ruff check hidden_lab tests tools
+      - run: python -m unittest discover -s tests -q
+      - run: python -m hidden_lab ops demo --out benchmark_data/ci-demo
+      - run: python -m build --outdir dist
+      - run: python tools/check_release.py --archives dist
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - run: npm install --global pnpm@10.28.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test:quality
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm check:bundle
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - run: docker build --tag zone:ci .
+      - name: Offline container, health and static web
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker volume create zone-ci
+          cleanup() { docker rm -f zone-ci-server >/dev/null 2>&1 || true; docker volume rm zone-ci >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          docker run --rm -v zone-ci:/data zone:ci ops demo --out /data/demo
+          docker run --rm -v zone-ci:/data zone:ci ops check --db /data/demo/restored.sqlite3
+          token=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')
+          export ZONE_OPERATOR_TOKEN="$token"
+          docker run -d --name zone-ci-server --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
+            -e ZONE_OPERATOR_TOKEN -v zone-ci:/data -p 127.0.0.1:8766:8765 zone:ci \
+            serve --db /data/demo/restored.sqlite3 --host 0.0.0.0 --container-local --web-dir /app/web
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8766/health/ready >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:8766/health/live
+          curl --fail --silent http://127.0.0.1:8766/health/ready
+          curl --fail --silent http://127.0.0.1:8766/ | grep -q '<!doctype html>'
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8766/private/pack.json)" = 404
+          test "$(docker exec zone-ci-server id -u)" != 0
+          test "$(docker inspect --format '{{.State.Health.Status}}' zone-ci-server)" != unhealthy

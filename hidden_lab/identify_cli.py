@@ -1,7 +1,6 @@
 """Identificazione locale su un mondo Forge dopo la chiusura dell'indagine."""
 
 from hashlib import sha256
-import json
 from pathlib import Path
 
 from .benchmark_suite import save_new

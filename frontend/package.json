@@ -1,12 +1,17 @@
 {
   "name": "zone-laboratory",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.10.0",
+  "packageManager": "pnpm@10.28.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "node scripts/check-source.mjs",
+    "check:bundle": "node scripts/check-bundle.mjs",
+    "test:quality": "node --test scripts/quality.test.mjs",
     "test:browser": "node scripts/smoke.mjs",
     "test:browser:modes": "node scripts/smoke-modes.mjs",
     "test:browser:arena": "node scripts/smoke-arena.mjs"

@@ -51,4 +51,6 @@ Le sessioni Arena richiedono ownership e header di versione anche per la lettura
 
 ## Catalogo Integrity
 
+Versione 0.10: migrazioni SQLite 1–2, health live/ready, log ridotti, backup/restore e bundle compilato sulla stessa origine sono documentati in [operations.md](operations.md). Il bind resta loopback; l'eccezione container richiede `--container-local` e mapping loopback. Nessun deployment pubblico eseguito.
+
 `serve --integrity-pack PATH` importa pacchetti validati senza resettare ritiro o flag; SQLite conserva la verità privata. Train/development hanno endpoint pubblici, il test ha solo ID/commitment; i casi test sono riservati ad Arena. Il reveal è controllato nella transazione di append: challenge chiuse e nessuna indagine aperta sulla stessa legge, poi ritiro. Alias, importazioni contaminate e sessioni storiche sul test vengono rifiutati. Schema e formati benchmark restano compatibili. Dettagli, quote account e confini in [Integrity](integrity.md). Vite consente `ZONE_BACKEND_URL` per un backend loopback su porta diversa, senza modificare il default 8765.

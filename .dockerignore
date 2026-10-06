@@ -1,0 +1,23 @@
+# Allowlist: even untracked private data must stay outside the build context.
+**
+!Dockerfile
+!pyproject.toml
+!README.md
+!LICENSE
+!constraints-ci.txt
+!hidden_lab/
+!hidden_lab/*.py
+!frontend/
+!frontend/package.json
+!frontend/pnpm-lock.yaml
+!frontend/pnpm-workspace.yaml
+!frontend/index.html
+!frontend/tsconfig.json
+!frontend/vite.config.ts
+!frontend/src/
+!frontend/src/*.ts
+!frontend/src/*.tsx
+!frontend/src/*.css
+!frontend/scripts/
+!frontend/scripts/check-source.mjs
+!frontend/scripts/check-bundle.mjs

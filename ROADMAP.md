@@ -2,7 +2,7 @@
 
 Visione: **Zone is a public laboratory where humans and artificial agents try to discover the laws of unfamiliar universes through experiments.** Si procede per percorsi verticali locali e verificabili; nessuna chiamata a pagamento, download di modelli, pubblicazione o deployment senza autorizzazione successiva.
 
-Stati: **completata**, **in corso**, **da fare**. Ogni fase richiede test pertinenti, suite completa verde, documentazione e controllo del confine pubblico/privato. Le metriche restano separate.
+Stati: **completata**, **in corso**, **da fare**, oppure **implementata con verifica pendente** quando manca l'ambiente. Ogni fase richiede test pertinenti, suite completa verde, documentazione e controllo del confine pubblico/privato. Le metriche restano separate.
 
 | Fase | Criteri verificabili di completamento | Stato |
 | --- | --- | --- |
@@ -15,8 +15,8 @@ Stati: **completata**, **in corso**, **da fare**. Ogni fase richiede test pertin
 | 6. Modalità pubbliche | Scientist, Human vs AI con condizioni equivalenti, Watch an Agent, World of the Day locale e Build a Universe validato. | Completata |
 | 7. Zone Arena | Protocollo BYOA versionato, token revocabili, quote, idempotenza, audit e leaderboard multidimensionale. | Completata |
 | 8. Integrità | Suite train/development pubbliche e test privata; manifest/reveal; controlli di contaminazione, duplicati e abuso; threat model. | Completata |
-| 9. Qualità open source | Licenza scelta dall'autore, CONTRIBUTING, condotta, template, changelog, versione, demo, container e CI per test/lint/type check. | Da fare |
-| 10. Preparazione pubblicazione | Health check, migrazioni, log, backup, ambienti, checklist e guide di distribuzione; demo locale completa. Deployment non eseguito. | Da fare |
+| 9. Qualità open source | MIT scelta dall'autore, CONTRIBUTING, condotta, template, changelog, 0.10.0, demo, container e CI offline. | Implementata; verifica Docker/CI remota pendente |
+| 10. Preparazione pubblicazione | Health, migrazioni, log, backup/restore, ambienti, checklist/guide e demo locale completa. Deployment non eseguito. | Completata nel perimetro locale |
 
 ## Criteri immediati
 
@@ -24,6 +24,8 @@ La fase 1 include due baseline che producono trial senza accesso ai probe prima 
 
 ## Decisioni e limiti
 
-Le decisioni tecniche sono in `docs/decisions/`. Il repository Git è locale. Backend e frontend sono vincolati a loopback; non esistono ancora deployment o servizio pubblico. La fase 6 aggiunge le modalità locali e un agente gestito sul server, offline per default; nessun test con LLM reale prova capacità di scoperta. La fase 7 è un’Arena locale con operatore: non certifica il modello del client esterno, i suoi costi o l’integrità competitiva. La fase 8 aggiunge i controlli locali di integrità; le fasi 9–10 restano da fare. La pubblicazione del codice e qualsiasi spesa restano fuori dallo sviluppo autorizzato.
+Le decisioni tecniche sono in `docs/decisions/`. Il repository Git è locale. Backend e frontend sono vincolati a loopback; non esistono ancora deployment o servizio pubblico. La fase 6 aggiunge le modalità locali e un agente gestito sul server, offline per default; nessun test con LLM reale prova capacità di scoperta. La fase 7 è un’Arena locale con operatore: non certifica il modello del client esterno, i suoi costi o l’integrità competitiva. La fase 8 aggiunge i controlli locali di integrità; la fase 9 è implementata con verifica Docker/CI pendente e la fase 10 è completata nel perimetro locale. CI remoto e runtime Docker restano da provare nel relativo ambiente. La pubblicazione del codice e qualsiasi spesa restano fuori dallo sviluppo autorizzato.
 
 La fase 8 è documentata in [Integrity](docs/integrity.md) e nel [threat model](docs/threat-model.md): catalogo locale fidato, split impegnati, ritiro dopo reveal, score in embargo, flag append-only, duplicati euristici e limiti per account. Nessuna attestazione del modello o dei costi BYOA; nessun trial LLM reale.
+
+Le fasi 9–10 portano Zone alla versione 0.10.0 con MIT, CI offline, container locale, schema SQLite 2 e operazioni conservative. Prove locali: 203 test Python, 15 frontend, 2 controlli Node e smoke Edge sulla build. Guide in [operazioni](docs/operations.md), [checklist](docs/release-checklist.md) e [revisione operativa](docs/production-readiness.md). Docker assente e CI remota non eseguita: implementazione disponibile, verifica di distribuzione ancora necessaria.

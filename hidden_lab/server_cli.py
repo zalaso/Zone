@@ -12,6 +12,10 @@ def add_parser(commands):
     parser.add_argument("--world", action="append", type=Path, default=[],
                         help="Record World Forge privato; ripetibile")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--host", choices=("127.0.0.1", "0.0.0.0"), default="127.0.0.1")
+    parser.add_argument("--container-local", action="store_true", help="Consente 0.0.0.0 solo per il container pubblicato su loopback")
+    parser.add_argument("--web-dir", type=Path, help="Solo bundle compilato, es. frontend/dist")
+    parser.add_argument("--environment", choices=("local", "staging-local"), default=os.environ.get("ZONE_ENV", "local"))
     parser.add_argument("--integrity-pack", action="append", type=Path, default=[], help="Pacchetto split privato v1; registra mondi e policy")
     parser.add_argument("--agent-provider", choices=("openai", "anthropic", "gemini", "ollama"))
     parser.add_argument("--agent-model")
@@ -24,6 +28,10 @@ def add_parser(commands):
 
 
 def run_command(args):
+    if args.host != "127.0.0.1" and not args.container_local:
+        raise ValueError("Il bind non loopback richiede --container-local; non pubblicare la porta all'esterno.")
+    if args.environment not in ("local", "staging-local"):
+        raise ValueError("Ambiente Zone non supportato; nessuna modalità pubblica abilitata.")
     if not 1024 <= args.port <= 65535:
         raise ValueError("Porta locale fuori intervallo.")
     if not os.environ.get("ZONE_OPERATOR_TOKEN"):
@@ -41,10 +49,12 @@ def run_command(args):
         from .provider_factory import create_real_client
         client = create_real_client(args.agent_provider, settings)
     from .backend import create_app
+    from .runtime_ops import configure_logging
+    configure_logging()
     import uvicorn
     try:
-        app = create_app(args.db, worlds=records, agent_client=client, agent_settings=settings, integrity_packs=packs)
-        uvicorn.run(app, host="127.0.0.1", port=args.port, access_log=False)
+        app = create_app(args.db, worlds=records, agent_client=client, agent_settings=settings, integrity_packs=packs, static_dir=args.web_dir)
+        uvicorn.run(app, host=args.host, port=args.port, access_log=False, proxy_headers=False)
     finally:
         if client is not None:
             client.close()

@@ -3,7 +3,7 @@
 from .agent_contract import (AGENT_FIELDS, EXPERIMENT_SHAPE, ModelRequest, NUMBER,
                              PUBLIC_SHAPES, STRING, STRINGS, _project, obj)
 from .identification import validate_scientific_submission
-from .protocol import ValidationError, identifier, number, require_keys, text, text_list, validate_message
+from .protocol import ValidationError, identifier, require_keys, text, text_list, validate_message
 
 BENCHMARK_INSTRUCTIONS = """Conduci un'indagine sul solo apparato e sulla storia pubblica. Scrivi in italiano.
 Non assumere leggi note e non chiedere file, terminale, codice o strumenti.

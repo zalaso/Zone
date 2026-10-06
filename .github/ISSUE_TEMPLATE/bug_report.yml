@@ -1,0 +1,29 @@
+name: Bug riproducibile
+description: Errore con riproduzione locale e dati sintetici
+body:
+  - type: markdown
+    attributes:
+      value: 'Per vulnerabilità seguire SECURITY.md. Non includere token, database, seed test o verità privata.'
+  - type: input
+    id: version
+    attributes:
+      label: Versione Zone e ambiente
+      placeholder: '0.10.0, Python, sistema operativo, browser'
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Passi con dati sintetici
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Risultato atteso e osservato
+    validations:
+      required: true
+  - type: textarea
+    id: checks
+    attributes:
+      label: Test eseguiti e messaggi ridotti senza segreti

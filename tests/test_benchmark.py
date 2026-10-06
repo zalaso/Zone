@@ -240,8 +240,9 @@ class TrialTests(unittest.TestCase):
             self.assertEqual([event["message"]["experiment"] for event in sequential.events
                               if event["message"]["type"] == "passive_experiment"], self.world["passive_schedule"])
             kinds = [event["message"]["type"] for event in sequential.events]
-            for index in range(1, 4):
-                start = kinds.index("passive_experiment", 0 if index == 1 else kinds.index("passive_experiment", start + 1))
+            start = -1
+            for _ in range(3):
+                start = kinds.index("passive_experiment", start + 1)
                 self.assertEqual(kinds[start:start + 4], ["passive_experiment", "execution_started", "observation", "hypothesis"])
             self.assertEqual([request.context["phase"] for request in client.payloads],
                              ["post_observation"] * 3 + ["discovery", "submission"])

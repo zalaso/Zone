@@ -2,7 +2,6 @@
 
 from collections import Counter
 from hashlib import sha256
-import json
 import math
 import random
 

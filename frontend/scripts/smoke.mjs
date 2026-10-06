@@ -3,17 +3,19 @@ import assert from 'node:assert/strict'
 import { chromium } from 'playwright'
 
 const token = process.env.ZONE_SMOKE_OPERATOR_TOKEN
+const baseURL = process.env.ZONE_SMOKE_BASE_URL || 'http://127.0.0.1:5173'
+if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(baseURL)) throw new Error('Smoke consentito solo su loopback.')
 if (!token) throw new Error('Imposta ZONE_SMOKE_OPERATOR_TOKEN per il backend di prova locale.')
 const browser = await chromium.launch(process.env.ZONE_BROWSER_EXECUTABLE
   ? { executablePath: process.env.ZONE_BROWSER_EXECUTABLE, headless: true }
   : { channel: 'msedge', headless: true })
 try {
-  const context = await browser.newContext({ baseURL: 'http://127.0.0.1:5173', viewport: { width: 1280, height: 900 } })
+  const context = await browser.newContext({ baseURL, viewport: { width: 1280, height: 900 } })
   const page = await context.newPage()
   page.setDefaultTimeout(15_000)
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
-  await page.goto('http://127.0.0.1:5173/')
+  await page.goto(`${baseURL}/`)
   await page.getByRole('option').first().waitFor({ state: 'attached' })
   await page.getByLabel('Token operatore', { exact: true }).fill(token)
   await page.getByRole('button', { name: 'Crea sessione', exact: true }).click()
@@ -69,7 +71,7 @@ try {
   await page.getByRole('heading', { name: 'Record privato' }).waitFor()
   const clean = await browser.newContext()
   const readOnly = await clean.newPage()
-  await readOnly.goto('http://127.0.0.1:5173/')
+  await readOnly.goto(`${baseURL}/`)
   await readOnly.getByLabel('ID sessione', { exact: true }).fill(id)
   await readOnly.getByRole('button', { name: 'Apri sessione', exact: true }).click()
   await readOnly.getByRole('heading', { name: 'Risultato', exact: true, level: 2 }).waitFor()

@@ -47,38 +47,8 @@ class SQLiteRepository:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as db:
-            db.executescript("""
-                CREATE TABLE IF NOT EXISTS worlds (
-                    id TEXT PRIMARY KEY, record_json TEXT NOT NULL, manifest_json TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS sessions (
-                    id TEXT PRIMARY KEY, world_id TEXT NOT NULL REFERENCES worlds(id),
-                    agent_token_hash TEXT NOT NULL, score_json TEXT, audit_json TEXT,
-                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-                );
-                CREATE TABLE IF NOT EXISTS events (
-                    session_id TEXT NOT NULL REFERENCES sessions(id), seq INTEGER NOT NULL,
-                    actor TEXT NOT NULL, message_json TEXT NOT NULL,
-                    PRIMARY KEY (session_id, seq)
-                );
-                CREATE TABLE IF NOT EXISTS session_profiles (
-                    session_id TEXT PRIMARY KEY REFERENCES sessions(id), profile_json TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS matches (
-                    id TEXT PRIMARY KEY, human_id TEXT NOT NULL REFERENCES sessions(id),
-                    agent_id TEXT NOT NULL REFERENCES sessions(id), rules_json TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS daily_worlds (
-                    day TEXT PRIMARY KEY, world_id TEXT NOT NULL REFERENCES worlds(id)
-                );
-                CREATE TABLE IF NOT EXISTS agent_calls (
-                    session_id TEXT NOT NULL REFERENCES sessions(id), call_index INTEGER NOT NULL,
-                    outcome TEXT NOT NULL, audit_json TEXT NOT NULL,
-                    PRIMARY KEY(session_id, call_index)
-                );
-            """)
-            from .integrity_store import install_schema
-            install_schema(db)
+            from .migrations import migrate_connection
+            migrate_connection(db)
             for record in worlds:
                 validate_local_world(record)
                 from .integrity_store import IntegrityCatalog

@@ -1,5 +1,50 @@
 # Verifiche locali
 
+## Fasi 9–10 — 6 ottobre 2026
+
+Zone 0.10.0, MIT scelta dall'autore. Verifica finale su Windows/Python **3.14.4**: **203 test Python passati** (123,317 s; nessuno skip), inclusi **22 nuovi test** operazioni/release/configurazioni; **15 test frontend** passati, **2 test Node** dei controlli qualità; Ruff, TypeScript, lint AST, build Vite e scansioni bundle/archivi verdi. La matrice CI Linux/Windows 3.11/3.12 è predisposta, non eseguita sul remoto. Docker non è disponibile sull'host: build/runtime immagine non verificati. Nessuna API reale, credenziale provider, modello scaricato, upload o deployment.
+
+Migrazioni provate su schema precedente completo e parziale, riavvio/idempotenza e due inizializzazioni concorrenti; conservazione di eventi, quote, revoche, receipt, flag e ritiro. Errori di migrazione, relazioni invalide, vincoli rimossi, schema futuro/estraneo e checksum alterati vengono rifiutati senza adozione parziale. Backup WAL con scritture committate/non committate, timeout con cleanup, restore su file nuovo, tampering e rifiuto di sovrascrittura; retention di sola lettura. Health con DB assente/futuro/tabella mancante, nessuna chiamata modello, log/errori a campi consentiti anche su 429, statici senza file privati; CLI rifiuta bind non autorizzato e flag provider incompleti. Configurazioni CI/Compose testate per permessi, pin, loopback e runtime limitato. Wheel/sdist includono MIT e file consentiti, senza dati di esecuzione.
+
+Demo finale `benchmark_data/phase10-final-demo`: pacchetto Forge e controllo, baseline Arena con **3 esperimenti / 3 osservazioni / 9 passi**, scoring, chiusura, revoca, reveal/proof sul manifest conservato; pacchetto benchmark con **4 trial** simulated completati, esperimenti 0/1/1/1, chiamate fixture 3/3/3/4, zero invalidi, aggregazione/report; backup/restore/check e retention. Stato ripristinato: schema 2, 25 eventi, 24 receipt, 28 audit, un token revocato, tre casi Integrity. Seed noti: fixture software, nessuna conclusione sulla capacità di un LLM.
+
+Edge già installato, backend reale su 8766, bundle `frontend/dist` sulla stessa origine: sessione `a4e36d5e9bb2a604035af752cd58df49`, modifica a 0,5s, previsione su tre punti, zero esecuzioni prima del clic, osservazione/verifica, conclusione, submission, risultato, replay pubblico senza verità, reveal esplicito solo da operatore; contesto anonimo senza record privato, storage vuoto, nessun errore JavaScript e nessun overflow a 390px. Bundle 278,11 kB JS / 84,73 kB gzip. Server di prova arrestato; nessun servizio di altri progetti arrestato.
+
+Correzioni durante la verifica: raccolta Vitest ristretta ai test `src`, lasciando separati i test Node; scansione bundle corretta per accettare il nome pubblico `ZONE_OPERATOR_TOKEN` senza accettare valori sospetti; controllo YAML per segreti GitHub reso distinto dal modulo Python `secrets` usato per generare il token sintetico CI. Le ripetizioni finali passano. La scansione resta euristica e non certifica tutti i testi arbitrari.
+
+Comandi eseguiti dalla radice (le ripetizioni della demo usavano cartelle nuove):
+
+```powershell
+$env:MPLBACKEND = 'Agg'
+$env:MPLCONFIGDIR = Join-Path (Get-Location) 'benchmark_data/test-cache'
+.\.venv\Scripts\python.exe -m ruff check hidden_lab tests tools
+.\.venv\Scripts\python.exe -m unittest discover -s tests -q
+.\.venv\Scripts\python.exe -m hidden_lab ops demo --out benchmark_data/phase10-final-demo
+.\.venv\Scripts\python.exe -m hidden_lab ops --help
+.\.venv\Scripts\python.exe -m hidden_lab serve --help
+.\.venv\Scripts\python.exe -m build --no-isolation --outdir dist
+.\.venv\Scripts\python.exe tools/check_release.py --archives dist
+.\.venv\Scripts\python.exe -m hidden_lab forge generate --level 1 --seed 87523 --budget 3 --private benchmark_data/phase10-browser/world.json --manifest benchmark_data/phase10-browser/manifest.json
+# Token sintetico nell'ambiente; agente offline predefinito:
+.\.venv\Scripts\python.exe -m hidden_lab serve --db benchmark_data/phase10-browser/zone.sqlite3 --world benchmark_data/phase10-browser/world.json --port 8766 --web-dir frontend/dist
+# In un altro terminale:
+cd frontend
+pnpm typecheck
+pnpm lint
+pnpm test:quality
+pnpm test
+pnpm build
+pnpm check:bundle
+$env:ZONE_SMOKE_BASE_URL = 'http://127.0.0.1:8766'
+$env:ZONE_SMOKE_OPERATOR_TOKEN = '<stesso token sintetico del backend di prova>'
+$env:ZONE_BROWSER_EXECUTABLE = 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
+node scripts/smoke.mjs
+cd ..
+git diff --check
+```
+
+Ruff 0.14.10, build 1.3.0 e PyYAML 6.0.3 installati come strumenti di sviluppo; frontend eseguito con wrapper pnpm locale già disponibile (11.19.0), mentre packageManager/CI/container fissano pnpm 10.28.0. Nessun browser/modello scaricato. CI e Docker vanno provati secondo [operations.md](operations.md); pubblicazione futura segue la [checklist](release-checklist.md). File: licenza/metadata/guide/template, workflow e container; nuovi moduli schema/migrations/operations/runtime_ops/static_web/demo_workflow, integrazione CLI/repository/backend; controlli frontend e smoke, 22 test aggiuntivi e pulizia di import inutilizzati segnalati da Ruff. Formati e confine provider benchmark v0.3 restano invariati.
+
 ## Consolidamento fasi 0–5 — 4 ottobre 2026
 
 La suite Python completa ha eseguito 129 test senza errori. La suite frontend della fase 5 comprende sei test e la build esegue il controllo TypeScript prima di Vite.

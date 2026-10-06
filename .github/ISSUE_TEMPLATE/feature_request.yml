@@ -1,0 +1,19 @@
+name: Proposta
+description: Problema, comportamento e criteri verificabili
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema da risolvere
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Comportamento desiderato e criteri di verifica
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Effetto su compatibilità, costi e confine pubblico/privato

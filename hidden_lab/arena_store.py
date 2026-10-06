@@ -23,32 +23,8 @@ class ArenaStore:
         self.repo, self.operator_token = repository, operator_token
         self.clock = clock or time.time
         with repository._connect() as db:
-            db.executescript("""
-                CREATE TABLE IF NOT EXISTS arena_agents (
-                    id TEXT PRIMARY KEY, metadata_json TEXT NOT NULL, quotas_json TEXT NOT NULL,
-                    sessions INTEGER NOT NULL DEFAULT 0, requests INTEGER NOT NULL DEFAULT 0,
-                    experiments INTEGER NOT NULL DEFAULT 0, invalid INTEGER NOT NULL DEFAULT 0);
-                CREATE TABLE IF NOT EXISTS arena_tokens (
-                    id TEXT PRIMARY KEY, agent_id TEXT NOT NULL REFERENCES arena_agents(id),
-                    hash TEXT NOT NULL UNIQUE, expires REAL NOT NULL, revoked INTEGER NOT NULL DEFAULT 0);
-                CREATE TABLE IF NOT EXISTS arena_challenges (
-                    id TEXT PRIMARY KEY, world_id TEXT NOT NULL REFERENCES worlds(id),
-                    name TEXT NOT NULL, rules_json TEXT NOT NULL, closed INTEGER NOT NULL DEFAULT 0);
-                CREATE TABLE IF NOT EXISTS arena_trials (
-                    session_id TEXT PRIMARY KEY REFERENCES sessions(id),
-                    challenge_id TEXT NOT NULL REFERENCES arena_challenges(id),
-                    agent_id TEXT NOT NULL REFERENCES arena_agents(id), cohort_hash TEXT NOT NULL);
-                CREATE TABLE IF NOT EXISTS arena_receipts (
-                    principal TEXT NOT NULL, key_hash TEXT NOT NULL, path TEXT NOT NULL,
-                    body_hash TEXT NOT NULL, status INTEGER NOT NULL, response_json TEXT NOT NULL,
-                    PRIMARY KEY(principal,key_hash));
-                CREATE TABLE IF NOT EXISTS arena_audit (
-                    seq INTEGER PRIMARY KEY AUTOINCREMENT, time REAL NOT NULL, principal TEXT NOT NULL,
-                    action TEXT NOT NULL, status INTEGER NOT NULL, key_hash TEXT NOT NULL);
-                CREATE TABLE IF NOT EXISTS arena_rates (
-                    agent_id TEXT PRIMARY KEY REFERENCES arena_agents(id), window REAL NOT NULL,
-                    reads INTEGER NOT NULL DEFAULT 0, writes INTEGER NOT NULL DEFAULT 0);
-            """)
+            from .migrations import migrate_connection
+            migrate_connection(db)
 
     def authenticate(self, db, supplied, operator=False):
         if not isinstance(supplied, str) or len(supplied) > 256:
