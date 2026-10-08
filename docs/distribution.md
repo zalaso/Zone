@@ -6,7 +6,7 @@ Il repository remoto è privato, `zalaso/Zone`. L'autore ha confermato budget Gi
 
 ## Cosa controlla la prova
 
-`tools/verify_distribution.py` richiede una cartella nuova. In modalità `wheel` crea un virtualenv senza pacchetti di sistema, installa wheel ed extra backend con i vincoli diretti, ed esegue da una directory fuori dal checkout. Verifica la provenienza del modulo dal virtualenv e l'assenza degli SDK OpenAI, Anthropic e Gemini. In modalità `docker` usa un'immagine già costruita, con volume e container dai nomi casuali; verifica UID 10001, filesystem immutabile e stato Docker precisamente `healthy`.
+`tools/verify_distribution.py` richiede una cartella nuova. In modalità `wheel` crea un virtualenv senza pacchetti di sistema, installa wheel ed extra backend con i vincoli diretti, ed esegue dalla cartella privata nuova, senza importare codice dalla radice del checkout. Verifica la provenienza del modulo dal virtualenv e l'assenza degli SDK OpenAI, Anthropic e Gemini. In modalità `docker` usa un'immagine già costruita, con volume e container dai nomi casuali; verifica UID 10001, filesystem immutabile e stato Docker precisamente `healthy`.
 
 Entrambe le modalità eseguono la demo esistente: Forge, Arena, tre esperimenti e nove chiamate baseline, chiusura, revoca, reveal/proof, benchmark nelle quattro condizioni, aggregazione e report. Poi avviano un server HTTP reale su una porta libera di loopback e controllano health, header, API e accesso negato senza token. Con il bundle verificano anche la pagina iniziale e il diniego dei percorsi privati.
 

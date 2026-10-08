@@ -1,15 +1,15 @@
 # Checklist di pubblicazione successiva
 
-Prepara una release; non autorizza pubblicazione, deployment o spese. Versione locale 0.10.0, MIT; contratti benchmark v0.3, Arena BYOA v1 e Integrity v1 invariati.
+Prepara una release pubblica; non autorizza pubblicazione, deployment o spese. Versione 0.11.0, MIT; contratti benchmark v0.3, Arena BYOA v1 e Integrity v1 invariati. Repository privato e CI autorizzati nella fase 11, dopo conferma budget Actions zero e blocco degli extra.
 
-- [ ] Suite Python, Ruff, frontend, TypeScript, lint AST, build e scansioni bundle/archivi verdi da checkout pulito.
-- [ ] `ops demo` su cartella nuova: proof contro manifest originario, quattro trial, report e restore verificati.
-- [ ] GitHub Actions sul repository remoto: Linux/Windows Python 3.11/3.12 e container Linux verdi. Il file CI da solo non basta.
-- [ ] Docker build/runtime: loopback, UID non root, health, volume e arresto senza perdita dati.
-- [ ] LICENSE, versioni, changelog, CONTRIBUTING, condotta, template e guide aggiornati. Dipendenze e tool mantengono le proprie licenze.
-- [ ] Git, cronologia e archivi rivisti: nessuna credenziale, DB, backup, suite test privata, nonce o registro provider. `examples/` è demo a legge nota, inadatta a test ciechi.
-- [ ] Immagine con soli codice/backend e bundle pubblico; dati nel volume. Scansioni euristiche non sostituiscono revisione degli artefatti.
-- [ ] Pin Actions e lock frontend verificati; pin diretti Python e tag base Docker non garantiscono build bit-identiche.
+- [x] Suite Python, Ruff, frontend, TypeScript, lint AST, build e scansioni bundle/archivi verdi da checkout pulito.
+- [x] `ops demo` su cartella nuova: proof contro manifest originario, quattro trial, report e restore verificati.
+- [x] GitHub Actions sul repository privato: Linux/Windows Python 3.11/3.12 e container Linux verdi ([esecuzione](https://github.com/zalaso/Zone/actions/runs/37821050036)).
+- [x] Docker build/runtime sul runner Linux: loopback, UID non root, health, volume e arresto senza perdita dati; wheel pulita verificata anche sul PC.
+- [x] LICENSE, versioni, changelog, CONTRIBUTING, condotta, template e guide aggiornati. Dipendenze e tool mantengono le proprie licenze.
+- [x] Git, cronologia e archivi rivisti: nessuna credenziale, DB, backup, suite test privata, nonce o registro provider. `examples/` è demo a legge nota, inadatta a test ciechi.
+- [x] Immagine con soli codice/backend e bundle pubblico; dati nel volume. Scansioni euristiche non sostituiscono revisione degli artefatti.
+- [x] Pin Actions e lock frontend verificati; pin diretti Python e tag base Docker non garantiscono build bit-identiche.
 
 Prima di un servizio pubblico:
 

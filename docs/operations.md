@@ -1,4 +1,4 @@
-# Operazioni locali — Zone 0.10
+# Operazioni locali — Zone 0.11
 
 Il perimetro è un host fidato, un processo server e un operatore su loopback. Le modalità `local` e `staging-local` sono etichette operative: non attivano isolamento automatico o configurazioni di sicurezza diverse. Usare cartelle, database, pacchetti e token distinti. Nessun deployment pubblico è stato eseguito.
 
@@ -104,4 +104,4 @@ docker compose down
 
 Non ripetere bootstrap su destinazioni esistenti. Per backup successivi: `docker compose run --rm zone ops backup --db /data/zone.sqlite3 --out /data/snapshot-02.sqlite3`; conservare coppia DB/manifest anche fuori dal volume con accesso controllato. Non usare `down --volumes` su dati da conservare.
 
-**Docker non era installato sull'host di sviluppo: build e runtime del container non sono stati eseguiti localmente.** La CI prepara la prova di build, demo, restore, health e asset su Linux; finché non gira sul repository pubblicato non è evidenza di successo. Tag base e dipendenze transitive non sono bloccati per digest: nessuna promessa di build identiche. La [documentazione ufficiale Docker](https://docs.docker.com/build/building/multi-stage/) descrive la build multistage.
+**Docker rimane assente sul PC; build e runtime sono stati verificati sul runner Linux GitHub nella fase 11.** La [CI reale](https://github.com/zalaso/Zone/actions/runs/37821050036) passa demo, health strettamente `healthy`, bundle, riavvio del server sullo stesso volume e backup/restore con confronto completo dei dati e replay. Il repository è privato; non viene pubblicata un'immagine. Prova equivalente con wheel isolata sul PC e sui runner Linux/Windows: [comandi e limiti](distribution.md). Tag base e dipendenze transitive non sono bloccati per digest: nessuna promessa di build identiche. La [documentazione ufficiale Docker](https://docs.docker.com/build/building/multi-stage/) descrive la build multistage.

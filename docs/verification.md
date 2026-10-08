@@ -1,4 +1,42 @@
-# Verifiche locali
+# Verifiche locali e distribuzione
+
+## Fase 11 — 8 ottobre 2026
+
+Zone **0.11.0**, protocolli benchmark v0.3/Arena v1/Integrity v1 e schema SQLite 2 invariati. Repository **privato** `zalaso/Zone`, creato dopo conferma dell'autore di budget Actions zero e blocco degli extra. [Esecuzione GitHub 37821050036](https://github.com/zalaso/Zone/actions/runs/37821050036), commit di codice `b32af33d34a62fa5ef43d529e53771d8f8751913`: **sei job completati con successo**, Python 3.11/3.12 su Ubuntu e Windows, frontend e container Linux. La documentazione dei risultati è aggiornata successivamente senza modificare il codice verificato. Nessuna API LLM, credenziale provider, modello scaricato, immagine pubblicata o deployment.
+
+Prove locali: **207 test Python passati**, 184,889 s, nessuno skip; **15 test frontend** e **2 test Node**, Ruff, tipi, lint AST, build Vite, scansione bundle e controllo wheel/sdist verdi. I quattro nuovi test controllano rilevazione delle variazioni con conteggi invariati, report senza impronte private, rifiuto di destinazioni esistenti, rimozione di credenziali provider/PYTHONPATH e confine HTTP locale. La matrice CI esegue l'intera suite, la demo, il build/check archivi e una nuova installazione wheel per ogni combinazione.
+
+Prova wheel reale locale in `benchmark_data/distribution-wheel-02`: virtualenv pulito, modulo caricato dal pacchetto installato, nessun SDK provider; server Uvicorn su loopback e bundle reale. Demo originale Forge/Arena/benchmark completa, poi riavvio e backup a server avviato/restore su file nuovo. Stesse righe di tutte le tabelle applicative e stesso replay API, schema 2, **25 eventi / 24 ricevute / 28 audit / 1 token revocato / 3 casi Integrity**. Il job Docker ripete lo stesso ciclo su volume temporaneo con UID 10001, root filesystem immutabile, capability rimosse, porta loopback e stato `healthy`; container e volume di prova rimossi. Nessun Docker Desktop installato sul PC. Seed noti e fixture software, nessuna misura di capacità scientifica.
+
+La prima prova del nuovo verificatore ometteva l'header di versione Arena nella richiesta senza token: il server rifiutava il protocollo prima dell'autenticazione. Correzione del verificatore, nuova destinazione locale e nuova CI completa verdi; nessuna modifica al protocollo applicativo. La prima esecuzione GitHub `37820902594` è stata sostituita, non conta come prova verde. Il precedente smoke Edge rimane quello della fase 10: questa fase usa richieste HTTP reali e i test frontend, senza attribuirsi un nuovo smoke browser.
+
+Comandi principali eseguiti dalla radice; rete soltanto per registri pubblici di dipendenze e GitHub, nessun modello:
+
+```powershell
+$env:MPLBACKEND = 'Agg'
+$env:MPLCONFIGDIR = Join-Path (Get-Location) 'benchmark_data/phase11-mpl'
+.\.venv\Scripts\python.exe -m ruff check hidden_lab tests tools
+.\.venv\Scripts\python.exe -m unittest discover -s tests -q
+.\.venv\Scripts\python.exe -m unittest tests.test_distribution tests.test_deployment -q
+$env:PYTHONUTF8 = '1'
+.\.venv\Scripts\python.exe -m build --outdir dist/phase11
+.\.venv\Scripts\python.exe tools/check_release.py --archives dist/phase11
+.\.venv\Scripts\python.exe tools/verify_distribution.py --mode wheel --wheel dist/phase11/hidden_physics_lab-0.11.0-py3-none-any.whl --web-dir frontend/dist --out benchmark_data/distribution-wheel-02
+cd frontend
+pnpm typecheck
+pnpm lint
+pnpm test:quality
+pnpm test
+pnpm build
+pnpm check:bundle
+cd ..
+gh repo create zalaso/Zone --private --description 'Zone: laboratory for discovering unfamiliar physical laws through controlled experiments'
+git remote add origin https://github.com/zalaso/Zone.git
+git push --set-upstream origin master
+gh run view 37821050036 --repo zalaso/Zone --json status,conclusion,jobs
+```
+
+Sul runner Linux: `docker build --tag zone:ci .` e `python tools/verify_distribution.py --mode docker --image zone:ci --out benchmark_data/container-verification`. Dati/log/impronte privati non caricati come artefatti CI. Report ridotto conservato localmente; istruzioni e limiti in [distribuzione](distribution.md). Restano pilot autorizzato, identità multiutente e verifica del futuro host/TLS/monitoraggio/carico. Dipendenze transitive e immagini base non sono integralmente fissate; nessuna promessa di build bit-identiche.
 
 ## Fasi 9–10 — 6 ottobre 2026
 
