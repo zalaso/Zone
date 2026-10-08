@@ -77,7 +77,9 @@ def public_report(mode, installation, initial):
 def http_read(port, path, token=None):
     if not path.startswith("/") or path.startswith("//"):
         raise ValueError("Local absolute route required")
-    headers = {} if token is None else {"X-Zone-Token": token, "X-Zone-Arena-Version": "1"}
+    headers = {"X-Zone-Arena-Version": "1"}
+    if token is not None:
+        headers["X-Zone-Token"] = token
     # Ignore ambient HTTP proxies: the verifier must only contact its own server.
     opener = build_opener(ProxyHandler({}))
     request = Request(f"http://127.0.0.1:{port}{path}", headers=headers)
