@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.0 — 8 ottobre 2026, verifica distribuzione
+
+- Verificatore offline condiviso per installazione wheel pulita e container: server HTTP reale, riavvio, backup a server avviato e restore separato con confronto completo dello stato e del replay.
+- Risorse Docker isolate e temporanee, SDK provider assenti nel runtime, chiavi provider escluse dall'ambiente e report senza dati privati.
+- CI Linux/Windows Python 3.11/3.12 estesa alla wheel pulita; container verificato con health strettamente `healthy` e volume persistente fra avvii.
+
+Formati scientifici e schema SQLite invariati. Nessun trial LLM reale o deployment pubblico; evidenze e limiti in [distribuzione](docs/distribution.md) e [verifiche](docs/verification.md).
+
 ## 0.10.0 — 6 ottobre 2026, release locale preparata
 
 Consolida le fasi 0–8 e completa l'implementazione delle fasi 9–10: licenza MIT scelta dall'autore, guide di contribuzione e sicurezza, template, versioni Python/frontend coerenti, CI offline e container locale. Nessuna release remota, immagine pubblicata o deployment eseguito.

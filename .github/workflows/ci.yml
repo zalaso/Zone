@@ -33,6 +33,9 @@ jobs:
       - run: python -m hidden_lab ops demo --out benchmark_data/ci-demo
       - run: python -m build --outdir dist
       - run: python tools/check_release.py --archives dist
+      - name: Clean wheel installation, restart and live restore
+        shell: bash
+        run: python tools/verify_distribution.py --mode wheel --wheel dist/*.whl --out benchmark_data/clean-wheel
   frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -62,27 +65,5 @@ jobs:
         with:
           persist-credentials: false
       - run: docker build --tag zone:ci .
-      - name: Offline container, health and static web
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker volume create zone-ci
-          cleanup() { docker rm -f zone-ci-server >/dev/null 2>&1 || true; docker volume rm zone-ci >/dev/null 2>&1 || true; }
-          trap cleanup EXIT
-          docker run --rm -v zone-ci:/data zone:ci ops demo --out /data/demo
-          docker run --rm -v zone-ci:/data zone:ci ops check --db /data/demo/restored.sqlite3
-          token=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')
-          export ZONE_OPERATOR_TOKEN="$token"
-          docker run -d --name zone-ci-server --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
-            -e ZONE_OPERATOR_TOKEN -v zone-ci:/data -p 127.0.0.1:8766:8765 zone:ci \
-            serve --db /data/demo/restored.sqlite3 --host 0.0.0.0 --container-local --web-dir /app/web
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent http://127.0.0.1:8766/health/ready >/dev/null; then break; fi
-            sleep 1
-          done
-          curl --fail --silent http://127.0.0.1:8766/health/live
-          curl --fail --silent http://127.0.0.1:8766/health/ready
-          curl --fail --silent http://127.0.0.1:8766/ | grep -q '<!doctype html>'
-          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8766/private/pack.json)" = 404
-          test "$(docker exec zone-ci-server id -u)" != 0
-          test "$(docker inspect --format '{{.State.Health.Status}}' zone-ci-server)" != unhealthy
+      - name: Offline container, persistent restart and live restore
+        run: python tools/verify_distribution.py --mode docker --image zone:ci --out benchmark_data/container-verification
