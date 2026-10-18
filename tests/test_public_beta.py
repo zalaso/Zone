@@ -20,7 +20,12 @@ class PublicBetaTests(unittest.TestCase):
                 validate_origin(target, public=True)
         with patch('tools.verify_hosted_beta.subprocess.run') as ssh:
             with self.assertRaises(ValueError):
-                verify('https://zone.example.org', Path('unused'))
+                verify('https://zone.example.org', Path('unused'), ssh_host='synthetic-host')
+            ssh.assert_not_called()
+        with patch('tools.verify_hosted_beta.subprocess.run') as ssh:
+            for host in ('-oProxyCommand=unsafe', 'host;unsafe', ''):
+                with self.assertRaises(ValueError):
+                    verify('https://zone.example.org', Path('unused'), public=True, ssh_host=host)
             ssh.assert_not_called()
 
     def test_fixture_credentials_never_leave_for_a_mismatched_server_origin(self):
@@ -32,7 +37,7 @@ class PublicBetaTests(unittest.TestCase):
                     returncode=0, stdout=json.dumps({'origin': 'https://different.example',
                         'accounts': {'member': {'login_key': 'PRIVATE_FIXTURE_SENTINEL'}}}))) as call:
                 with self.assertRaisesRegex(ValueError, 'different from VPS') as raised:
-                    verify('https://zone.example.org', Path(temp) / 'new', public=True)
+                    verify('https://zone.example.org', Path(temp) / 'new', public=True, ssh_host='synthetic-host')
                 self.assertNotIn('PRIVATE_FIXTURE_SENTINEL', str(raised.exception))
                 self.assertEqual(call.call_count, 1)  # SSH only; no browser or credentialed HTTP.
 

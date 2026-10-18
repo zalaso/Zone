@@ -1,6 +1,6 @@
 # Architettura attuale di Zone
 
-Questa pagina descrive il codice locale, non una piattaforma web già distribuita. Il laboratorio funziona senza rete. Il benchmark v0.3 è stato verificato con fixture e baseline offline, non con trial LLM reali.
+Questa pagina descrive l'applicazione self-hosted Zone 1.0. Il percorso predefinito funziona senza provider; i modelli personali sono facoltativi. Il benchmark v0.3 è verificato con fixture e baseline offline, senza dichiarare una validazione scientifica su trial LLM reali. Per installare il prodotto usare [la guida iniziale](getting-started.md).
 
 ## Confini
 
@@ -16,6 +16,10 @@ Questa pagina descrive il codice locale, non una piattaforma web già distribuit
 | Integrity | `integrity_suite.py`, `integrity_store.py`, `integrity_cli.py` | Pacchetti split v1, commitment salati/proof, firma fisica euristica privata, catalogo SQLite con ammissione, ritiro e flag. Nessun provider. |
 | Arena | `arena.py`, `arena_store.py`, `arena_client.py` | BYOA con ownership, quote/rate persistenti e receipt; embargo del test e classifiche con provenienza. |
 | Frontend | `frontend/src/` | React/TypeScript/Vite per il ciclo locale e replay; consuma DTO dell'API e mantiene i token solo in memoria. |
+| Account | `identity.py`, `identity_store.py`, `public_accounts.py`, `identity_cli.py` | Registrazione, password, recupero, cookie HttpOnly, CSRF, inviti, quote e isolamento per proprietario. Il primo iscritto non diventa amministratore. |
+| Connessioni personali | `connections.py`, `connector_contract.py`, `connector_cli.py`, `public_arena.py` | Chiavi API cifrate facoltative oppure connettore locale in uscita; lavori limitati, revoca e cronologie pubbliche separate. Nessuna inferenza all'avvio. |
+| ChatGPT | `chatgpt_auth.py`, `chatgpt_client.py`, `chatgpt_cli.py` | OAuth locale con store protetto e rinnovo controllato, selezione esplicita del modello e adattamento delle risposte. Non legge credenziali di altri programmi. |
+| Avvio installato | `workspace_cli.py` | Interfaccia inclusa nella wheel, database privato persistente, invito dell'amministratore locale, mondo iniziale e challenge diagnostica. |
 | Operazioni | `schema_sql.py`, `migrations.py`, `operations.py`, `runtime_ops.py`, `static_web.py`, `demo_workflow.py` | Schema versionato, backup consistente, restore nuovo, health read-only, log ridotti, bundle statico e demo offline. Mai payload provider o purge automatica. |
 
 Il flusso CLI è: messaggio validato → `Session.submit()` → decisione dell'operatore → `Session.run()` → simulatore → osservazione pubblica. L'API applica le stesse forme di messaggio tramite `LabState`, salva gli eventi in SQLite e proietta soltanto DTO pubblici. `Investigation` costruisce ogni chiamata CLI dalla sola storia pubblica e non è importato dal backend. `web_agent` costruisce richieste canoniche dalla sola storia della sessione web; il client non riceve `LabState` o record privati. Le modalità e il costruttore sono descritti in `docs/public-modes.md`. Nel benchmark: suite privata → trial → storia pubblica e submission congelata → verità dei probe privata → metriche → aggregazione offline. `execution_started` è scritto prima della simulazione; un errore successivo non autorizza un secondo lancio.
@@ -24,9 +28,9 @@ Il flusso CLI è: messaggio validato → `Session.submit()` → decisione dell'o
 
 - Il simulatore supporta le quattro famiglie storiche e mondi AST privati dei livelli 1–5. `world_forge.py` genera candidati e li verifica con esperimenti e probe; `world_forge_cli.py` produce file privati e manifest ridotti. Le suite benchmark v0.3 continuano a usare solo le quattro famiglie storiche. La fase 3 accetta un AST serializzato come dato JSON in una submission facoltativa; `identification.py` lo interpreta su una griglia privata e mantiene separate le metriche. Le formule testuali arbitrarie rimangono inerti.
 - Il benchmark v0.3 ha `prior_only`, `passive_fixed`, `passive_sequential` e `active`, probe distinti per interpolazione/estrapolazione e risultati v0.1/v0.2 leggibili. Il confronto principale è quello sequenziale/attivo. Il fixture conosce la legge: serve soltanto a testare il percorso. Le baseline usano solo la storia pubblica.
-- La CLI storica usa log JSONL sincronizzati: non sono una transazione atomica e non hanno ripresa dopo crash. Il backend locale usa invece eventi SQLite append-only, replay e confronto di versione; conserva `execution_started` prima del simulatore e non ripete un lancio interrotto. Il frontend React locale legge solo API pubbliche e richiede token inseriti a runtime per le azioni. Non esistono ancora utenti pubblici o deployment.
-- Le chiamate a modelli reali non sono state validate. Il costo API remoto non è stimato senza dati di prezzo e fatturazione; resta disponibile l'utilizzo nativo restituito dal provider. I client offline registrano costo API nullo, che non comprende costi di calcolo locali.
-- `README.md` e `docs/first-llm-session.md` documentano il laboratorio CLI; questa pagina e `ROADMAP.md` delimitano il lavoro verso la piattaforma pubblica.
+- La CLI storica usa log JSONL sincronizzati: non sono una transazione atomica e non hanno ripresa dopo crash. Il sito usa eventi SQLite append-only, replay e confronto di versione; conserva `execution_started` prima del simulatore e non ripete un lancio interrotto. Il frontend legge soltanto API pubbliche, con sessione account in cookie HttpOnly; il precedente accesso tramite token resta compatibile per gli strumenti autorizzati.
+- I trasporti provider sono verificati con client simulati. Un precedente piccolo pilot reale ha completato il protocollo, ma non valida l'abilità scientifica di più modelli o la qualità di ogni integrazione attuale. Il costo remoto non è stimato senza dati di prezzo e fatturazione; resta disponibile l'utilizzo nativo restituito dal provider. I client offline registrano costo API nullo, che non comprende il calcolo locale.
+- `README.md` e [getting-started](getting-started.md) documentano il prodotto installabile; [apparatus-protocol](apparatus-protocol.md) e [first-llm-session](first-llm-session.md) conservano la CLI di ricerca. [Self-hosting](self-hosting.md) descrive Docker e HTTPS. La pubblicazione del codice non offre un servizio gestito.
 
 ## Regola di riservatezza
 

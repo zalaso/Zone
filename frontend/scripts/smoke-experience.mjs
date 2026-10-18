@@ -77,6 +77,15 @@ try {
     await pending
     await page.getByRole('status').filter({ hasText: title }).waitFor({ state: 'hidden' })
   }
+  const day = await create('World of the Day')
+  assert.equal(day.mode, 'world_of_day')
+  assert.equal(day.managed_agent, false)
+  assert.equal(await page.getByLabel('Mondo pubblico').isEnabled(), false)
+  const dayWorld = day.world_id
+  await new Promise(resolve => setTimeout(resolve, 2100))
+  const sameDay = await create('World of the Day')
+  assert.equal(sameDay.world_id, dayWorld, 'Il mondo giornaliero rimane identico')
+  await new Promise(resolve => setTimeout(resolve, 2100))
   await choose('Build a Universe')
   await captureWait('**/v1/worlds/generate', 'Il laboratorio sta preparando il mondo', 'Valida e registra mondo', 'world-building')
   await page.getByText(/Mondo accettato:/).waitFor()
