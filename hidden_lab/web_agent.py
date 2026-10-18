@@ -129,7 +129,7 @@ class OfflineLabClient:
         elif "hypothesis" in request.allowed_types and (request.context["phase"] == "predict" or
                 not hypotheses or len(observations) > len(hypotheses) - 1):
             message = {"type": "hypothesis", "hypothesis_id": f"offline_h{len(hypotheses)+1}",
-                       "statement": "A tentative linear acceleration model fitted from public positions. Acceleration may depend on height and velocity.",
+                       "statement": "Tentative hypothesis: acceleration can be approximated by a linear function of height and velocity. This baseline tests that limited model using public measurements.",
                        "uncertainties": ["Numerical baseline, not an LLM. The fit is limited and sensitive to noise; dependence on horizontal position and nonlinear effects are not represented."],
                        "evidence": evidence}
         elif "experiment_request" in request.allowed_types and len(requests) < 4:
