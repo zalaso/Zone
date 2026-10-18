@@ -140,6 +140,9 @@ try {
   assert(await page.getByLabel('Mondo pubblico').isDisabled())
   await choose('Human vs AI')
   assert(await page.getByText(/Conduci per primo l’indagine umana/).isVisible())
+  // A fast Chromium runner can finish the preceding scenarios in one IP window.
+  // Start the independent full comparison in a fresh window, without weakening quotas.
+  await new Promise(resolve => setTimeout(resolve, 60_000))
   const paired = await create('Human vs AI')
   assert.equal(paired.agent.agent.real_model, false)
   await page.getByText('Concludi e passa alla prova finale', { exact: true }).click()
