@@ -8,11 +8,13 @@ Required gates:
 - [x] Frontend tests, TypeScript/build, AST lint and public bundle checks: 35 UI tests and 2 guard tests passed.
 - [x] Full offline operational demo: four benchmark conditions, Arena, aggregation/report and verified backup/restore.
 - [x] Clean installed wheel outside the checkout: bundled UI, official workspace launcher, private-file exclusion, registration, persistence, restart and restore.
-- [ ] Linux/Windows CI and Docker build/runtime.
+- [x] Linux/Windows Python 3.11/3.12 CI and Docker build/runtime: [all six jobs passed](https://github.com/zalaso/Zone/actions/runs/39110042893).
 - [x] Offline browser: all modes, real local observations, predictions, final scores, account lifecycle, desktop/mobile and reduced motion.
-- [x] Publishable worktree, reachable Git history and candidate archives scanned without secret values in reports; repeat for final archives.
-- [x] README, operator/developer guides, license/notices and local documentation links checked. Public reporting channels are verified after visibility changes.
-- [ ] Public GitHub repository, tagged release, wheel/source archives and SHA256SUMS verified.
+- [x] Publishable worktree, reachable Git history and release archives scanned without secret values in reports.
+- [x] README, operator/developer guides, license/notices and local documentation links checked. GitHub Discussions, private vulnerability reporting and dependency alerts enabled and verified; no dependency advisories open at verification time.
+- [x] Public GitHub repository and README readable without authentication; wheel/source archives and SHA256SUMS generated and audited.
+
+Release assets: [Zone v1.0.0](https://github.com/zalaso/Zone/releases/tag/v1.0.0). The final publication check downloads both assets and compares their hashes with SHA256SUMS. The linked implementation run passed before final documentation consolidation and tightening the daily-world browser assertion; the tagged release repeats the six CI jobs after those changes. No application code changes are introduced by that consolidation.
 
 No real provider inference, model download or production VPS change is part of these gates. The publisher must not upload databases, backup files, OAuth stores, personal API keys or private benchmark suites. Standard GitHub-hosted runners are used only; workflow artifacts containing data are not uploaded.
 
@@ -27,6 +29,7 @@ python -m unittest discover -s tests -q
 python -m hidden_lab ops demo --out benchmark_data/release-demo
 cd frontend
 pnpm install --frozen-lockfile
+pnpm audit --audit-level moderate
 pnpm test --maxWorkers=2
 pnpm lint
 pnpm test:quality

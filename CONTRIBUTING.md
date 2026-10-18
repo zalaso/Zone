@@ -16,6 +16,7 @@ $env:MPLCONFIGDIR = Join-Path (Get-Location) 'benchmark_data/mpl-cache'
 .\.venv\Scripts\python.exe -m hidden_lab ops demo --out benchmark_data/contributor-demo
 cd frontend
 pnpm install --frozen-lockfile
+pnpm audit --audit-level moderate
 pnpm typecheck
 pnpm lint
 pnpm test:quality
@@ -29,6 +30,8 @@ git diff --check
 ```
 
 Su Linux usare `.venv/bin/python`. La demo richiede una cartella nuova. Gli SDK sono facoltativi per l'uso normale: la CI li installa per verificare adapter con trasporti fittizi, senza credenziali. `constraints-ci.txt` fissa le dipendenze dirette provate; non è un lock transitivo. Il frontend conserva il lock pnpm.
+
+Per lavorare sull'interfaccia avvia `python -m hidden_lab workspace --data ./zone-data --web-dir frontend/dist` dopo il build: il percorso esplicito evita di mostrare un precedente bundle generato da un build della release nello stesso checkout.
 
 Ruff controlla errori di sintassi, nomi e import inutilizzati; TypeScript usa controlli strict. Il lint AST frontend vieta esecuzione dinamica, HTML raw e storage persistente: non è un formatter né un analizzatore generale di sicurezza. Le scansioni di bundle sono euristiche. Aggiungere test di comportamento per nuove transizioni, autorizzazioni o confini, senza duplicare l'implementazione.
 
