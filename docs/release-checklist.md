@@ -16,7 +16,7 @@ Required gates:
 
 No real provider inference, model download or production VPS change is part of these gates. The publisher must not upload databases, backup files, OAuth stores, personal API keys or private benchmark suites. Standard GitHub-hosted runners are used only; workflow artifacts containing data are not uploaded.
 
-Local verification date: 2026-10-18 (Windows, Python 3.14). Clean installation also confirms no provider SDKs in the offline environment. The frontend production dependency advisory audit reported zero known vulnerabilities at that time; this is not a security certification. The published tag, CI and release notes are the final source of release evidence.
+Local verification date: 2026-10-18 (Windows, Python 3.14). Clean installation also confirms no provider SDKs in the offline environment. Dependency checks cover both production and development packages; the CI rejects moderate or higher frontend advisories. These checks are not a security certification. The published tag, CI and release notes are the final source of release evidence.
 
 ## Reproduce
 
