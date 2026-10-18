@@ -1,6 +1,6 @@
 # Getting started
 
-Zone is a self-hosted research application, not an account on a central service. Start without an AI; the default numerical baseline is explicitly identified as **not an LLM**. The interface and its in-app guide are currently in Italian.
+Zone is a self-hosted research application, not an account on a central service. Start without an AI; the default numerical baseline is explicitly identified as **not an LLM**. The interface, guided onboarding and in-app glossary are in English. Your own notes and model replies keep their original language.
 
 ## Install a release (Python 3.11+; Node is not required)
 
@@ -10,7 +10,7 @@ PowerShell, from a folder where you want to keep your installation:
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install "hidden-physics-lab[workspace] @ https://github.com/zalaso/Zone/releases/download/v1.0.0/hidden_physics_lab-1.0.0-py3-none-any.whl"
+.\.venv\Scripts\python.exe -m pip install "hidden-physics-lab[workspace] @ https://github.com/zalaso/Zone/releases/download/v1.1.0/hidden_physics_lab-1.1.0-py3-none-any.whl"
 .\.venv\Scripts\python.exe -m hidden_lab workspace --data ./zone-data
 ```
 
@@ -18,7 +18,7 @@ Linux/macOS:
 
 ```sh
 python3 -m venv .venv
-.venv/bin/python -m pip install 'hidden-physics-lab[workspace] @ https://github.com/zalaso/Zone/releases/download/v1.0.0/hidden_physics_lab-1.0.0-py3-none-any.whl'
+.venv/bin/python -m pip install 'hidden-physics-lab[workspace] @ https://github.com/zalaso/Zone/releases/download/v1.1.0/hidden_physics_lab-1.1.0-py3-none-any.whl'
 .venv/bin/python -m hidden_lab workspace --data ./zone-data
 ```
 
@@ -44,17 +44,17 @@ On Windows substitute `.\.venv\Scripts\python.exe` for `.venv/bin/python` and `p
 
 ## First investigation
 
-1. Click **Crea account**, choose a username and a password of at least 12 characters, and save the one-time recovery code. Then click **Ho conservato il codice**. Creating an account does not connect or charge an AI.
-2. Click **Inizia senza AI** or choose **Scientist**, select a world and click **Crea sessione**. A level-1 world and a diagnostic Arena challenge are generated on first startup.
-3. Write the purpose of your experiment. Set position and velocity on x/y, duration and measurement interval. Send the request, approve it and choose **Esplorazione**. Finally click **Esegui esperimento**: approval alone does not launch anything.
-4. Play back the public measurements, enter an hypothesis or switch to **Verifica con previsione** for a subsequent experiment. Verification requires predicted positions at all approved times before the launch.
+1. Click **Create account**, choose a username and a password of at least 12 characters, and save the one-time recovery code. Then click **I have saved my code**. Creating an account does not connect or charge an AI.
+2. Click **Start without AI** or choose **Scientist**, select a world and click **Create investigation**. A level-1 world and a diagnostic Arena challenge are generated on first startup.
+3. Write the purpose of your experiment. Set position and velocity on x/y, duration and measurement interval. Send the request, approve it and choose **Exploration**. Finally click **Run experiment**: approval alone does not launch anything.
+4. Play back the public measurements, enter a hypothesis or switch to **Verification with a prediction** for a subsequent experiment. Verification requires predicted positions at all approved times before the launch.
 5. Conclude with evidence, limits and alternatives, including insufficient information when appropriate. The final probes ask for accelerations on new states. Results remain separate by dimension and interpolation/extrapolation category.
 
-Use **Guida a Zone** for every mode, glossary and technical explanations. Sessions are stored automatically and can be reopened from **Le mie sessioni**. Plain-language explanations and numeric tables accompany the visualizations.
+Use **Guide to Zone** for every mode, glossary and technical explanations. Sessions are stored automatically and can be reopened from **My investigations**. Plain-language explanations and numeric tables accompany the visualizations.
 
 ## Host-owner access
 
-The first startup creates an administrative invite in `zone-data/admin-key.txt`, readable only by trusted local users. Sign in using **Ho un invito** and that key. The first self-registered account is a member, never automatically an administrator. The key is not printed in server logs, sent to a provider or served by the website.
+The first startup creates an administrative invite in `zone-data/admin-key.txt`, readable only by trusted local users. Sign in using **I have an invite** and that key. The first self-registered account is a member, never automatically an administrator. The key is not printed in server logs, sent to a provider or served by the website.
 
 The administrative key expires after 30 days; rotate it in the admin console. For trusted-host recovery:
 

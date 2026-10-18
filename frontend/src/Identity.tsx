@@ -11,8 +11,8 @@ const PublicWorkspaceContext = createContext(false)
 export function usePublicWorkspace() { return useContext(PublicWorkspaceContext) }
 export function useIdentity() { return useContext(IdentityContext) }
 const defaults: Quotas = { sessions: 30, experiments: 100, model_calls: 50, read: 120, write: 30, run: 10 }
-const quotaLabels: Record<keyof Quotas, string> = { sessions: 'Sessioni totali', experiments: 'Esperimenti totali',
-  model_calls: 'Chiamate al modello totali', read: 'Letture al minuto', write: 'Scritture al minuto', run: 'Lanci al minuto' }
+const quotaLabels: Record<keyof Quotas, string> = { sessions: "Total investigations", experiments: "Total experiments",
+  model_calls: "Total model calls", read: "Reads per minute", write: "Writes per minute", run: "Experiments per minute" }
 
 export function IdentityGate({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<'loading' | 'local' | 'accounts'>('loading')
@@ -37,41 +37,41 @@ export function IdentityGate({ children }: { children: ReactNode }) {
         try {
           const me = await request<{ account: Account; csrf: string }>('/auth/me')
           if (alive) { setAccount(me.account); accountTransport(true, me.csrf) }
-        } catch (e) { if (alive && !(e instanceof ApiError && e.status === 401)) setError(e instanceof Error ? e.message : 'Accesso non disponibile.') }
+        } catch (e) { if (alive && !(e instanceof ApiError && e.status === 401)) setError(e instanceof Error ? e.message : "Sign-in is unavailable. Please try again.") }
       }
     }).catch(e => { if (alive) setError(e.message) })
     return () => { alive = false; window.removeEventListener('zone-auth-expired', expired) }
   }, [])
   async function act(work: () => Promise<void>) {
     setBusy(true); setError('')
-    try { await work() } catch (e) { setError(e instanceof Error ? e.message : 'Operazione non riuscita.') }
+    try { await work() } catch (e) { setError(e instanceof Error ? e.message : "This action could not be completed.") }
     finally { setBusy(false) }
   }
   if (mode === 'local') return children
-  if (mode === 'loading') return <main className="app-shell"><p role="status">Connessione al laboratorio…</p>{error && <p role="alert">{error} Ricarica la pagina per riprovare.</p>}</main>
+  if (mode === 'loading') return <main className="app-shell"><p role="status">Connecting to the laboratory…</p>{error && <p role="alert">{error} Reload the page to try again.</p>}</main>
   if (publicWorkspace && !account) return <PublicAccess registrationOpen={registrationOpen} onLogin={(user, csrf) => { setAccount(user); accountTransport(true, csrf) }} />
   if (publicWorkspace && account) return <IdentityContext.Provider value={account}><PublicWorkspaceContext.Provider value={true}><Workspace account={account} admin={account.role === 'admin' ? <AdminAccounts /> : null} logout={() => void act(async () => {
     await request('/auth/logout', 'POST', {}); accountTransport(true); setAccount(null)
   })}>{children}</Workspace>{error && <p className="error" role="alert">{error}</p>}</PublicWorkspaceContext.Provider></IdentityContext.Provider>
-  if (!account) return <main className="app-shell"><section className="panel"><span className="kicker">ZONE / ACCESSO SU INVITO</span><h1>Entra nel laboratorio</h1><p>Usa la chiave ricevuta dall’amministratore. Non inviarla al modello.</p>
+  if (!account) return <main className="app-shell"><section className="panel"><span className="kicker">Zone · invitation access</span><h1>Enter the laboratory</h1><p>Use the access key from your administrator. Never send it to a model.</p>
     <form onSubmit={e => { e.preventDefault(); void act(async () => {
       try {
         const data = await request<{ account: Account; csrf: string }>('/auth/login', 'POST', { login_key: key })
         accountTransport(true, data.csrf); setAccount(data.account)
       } finally { setKey('') }
-    }) }}><label>Chiave di accesso<input type="password" autoComplete="off" required value={key} onChange={e => setKey(e.target.value)} /></label><button className="button primary" disabled={busy}>Accedi</button></form>
-    <p className="field-hint">La chiave non viene salvata nel browser. La sessione scade dopo 30 minuti di inattività, o al massimo dopo 8 ore.</p>{error && <p role="alert" className="error">{error}</p>}</section></main>
+    }) }}><label>Access key<input type="password" autoComplete="off" required value={key} onChange={e => setKey(e.target.value)} /></label><button className="button primary" disabled={busy}>Sign in</button></form>
+    <p className="field-hint">Your key is not saved in browser storage. The login expires after 30 minutes of inactivity or eight hours in total.</p>{error && <p role="alert" className="error">{error}</p>}</section></main>
   return <IdentityContext.Provider value={account}><section className="app-shell"><div className="panel"><span className="kicker">ACCOUNT / {account.role}</span><h2>{account.handle}</h2>
-    <p>{account.usage.sessions}/{account.quotas.sessions} sessioni · {account.usage.experiments}/{account.quotas.experiments} lanci · {account.usage.model_calls}/{account.quotas.model_calls} chiamate al modello</p>
+    <p>{account.usage.sessions}/{account.quotas.sessions} investigations · {account.usage.experiments}/{account.quotas.experiments} experiments · {account.usage.model_calls}/{account.quotas.model_calls} model calls</p>
     <div className="button-row"><button className="button secondary" disabled={busy} onClick={() => void act(async () => {
       const data = await request<{ account: Account; csrf: string }>('/auth/me'); setAccount(data.account); accountTransport(true, data.csrf)
-    })}>Aggiorna utilizzo</button><button className="button secondary" disabled={busy} onClick={() => void act(async () => {
+    })}>Refresh usage</button><button className="button secondary" disabled={busy} onClick={() => void act(async () => {
       await request('/auth/logout', 'POST', {}); accountTransport(true); setAccount(null); setSessions([]); setAfter(0); setHasMore(true)
-    })}>Esci dall’account</button></div>
-    <details><summary>Le mie sessioni</summary><p>Copia un ID nel campo “Apri un replay” del laboratorio.</p><ul>{sessions.map(s => <li key={s.session_id}><code>{s.session_id}</code> · {s.mode}</li>)}</ul><button className="button tiny" disabled={busy} onClick={() => void act(async () => {
+    })}>Sign out</button></div>
+    <details><summary>My investigations</summary><p>Use the investigation identifier in the laboratory's advanced Open a history form.</p><ul>{sessions.map(s => <li key={s.session_id}><code>{s.session_id}</code> · {s.mode}</li>)}</ul><button className="button tiny" disabled={busy} onClick={() => void act(async () => {
       const page = await request<{ sessions: typeof sessions; next_after: number }>(`/my/sessions?after=${after}`)
       setSessions(current => [...current, ...page.sessions]); setAfter(page.next_after); setHasMore(page.sessions.length === 100)
-    })}>{after ? hasMore ? 'Carica altre sessioni' : 'Aggiorna elenco' : 'Carica sessioni'}</button></details>{error && <p role="alert" className="error">{error}</p>}
+    })}>{after ? hasMore ? "Load more investigations" : "Refresh list" : "Load investigations"}</button></details>{error && <p role="alert" className="error">{error}</p>}
   </div>{account.role === 'admin' && <AdminAccounts />}</section>{children}</IdentityContext.Provider>
 }
 
@@ -90,19 +90,19 @@ function AdminAccounts() {
   const [busy, setBusy] = useState(false)
   async function act(work: () => Promise<void>) {
     setBusy(true); setError(''); setIssued(''); setShowIssued(false)
-    try { await work() } catch (e) { setError(e instanceof Error ? e.message : 'Operazione non riuscita.') }
+    try { await work() } catch (e) { setError(e instanceof Error ? e.message : "This action could not be completed.") }
     finally { setBusy(false) }
   }
-  return <details className="panel"><summary>Amministrazione account</summary><p>Accesso su invito. La disabilitazione revoca gli accessi; una modifica a ruolo o quote chiude le sessioni browser. L’utilizzo non viene azzerato.</p>
+  return <details className="panel"><summary>Account administration</summary><p>Manage invited accounts. Disabling an account revokes access. Changing a role or limits signs out browser sessions without resetting usage.</p>
     <button className="button tiny" disabled={busy} onClick={() => void act(async () => {
       const page = await request<{ accounts: Account[]; next_after: number }>(`/admin/accounts?after=${after}`)
       setAccounts(current => [...current, ...page.accounts]); setAfter(page.next_after)
-    })}>Carica account / pagina successiva</button>
-    <label>Account da gestire<select aria-label="Account da gestire" value={selected} onChange={e => {
+    })}>Load accounts / next page</button>
+    <label>Account to manage<select aria-label={"Account to manage"} value={selected} onChange={e => {
       setSelected(e.target.value); setIssued('')
       const target = accounts.find(a => a.account_id === e.target.value)
       setHandle(target?.handle ?? ''); setRole(target?.role ?? 'member'); setEnabled(target?.enabled ?? true); setQuotas(target?.quotas ?? defaults)
-    }}><option value="">Nuovo account</option>{accounts.map(a => <option key={a.account_id} value={a.account_id}>{a.handle} · {a.role} · {a.enabled ? 'attivo' : 'disabilitato'}</option>)}</select></label>
+    }}><option value="">New account</option>{accounts.map(a => <option key={a.account_id} value={a.account_id}>{a.handle} · {a.role} · {a.enabled ? 'active' : 'disabled'}</option>)}</select></label>
     <form onSubmit={e => { e.preventDefault(); void act(async () => {
       if (selected) {
         await request(`/admin/accounts/${selected}`, 'POST', { role, enabled, quotas })
@@ -112,16 +112,16 @@ function AdminAccounts() {
       }
       const page = await request<{ accounts: Account[]; next_after: number }>('/admin/accounts')
       setAccounts(page.accounts); setAfter(page.next_after)
-    }) }}><label>Nome account<input value={handle} onChange={e => setHandle(e.target.value)} disabled={!!selected} required pattern="[a-z][a-z0-9_-]{2,47}" /></label>
-    <label>Ruolo<select aria-label="Ruolo account" value={role} onChange={e => setRole(e.target.value as Role)}>{(['member', 'operator', 'admin'] as const).map(r => <option key={r}>{r}</option>)}</select></label>
-    {selected && <label className="check-row"><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} />Account abilitato</label>}
-    <fieldset className="field-grid"><legend>Quote totali e richieste al minuto</legend>{(Object.keys(defaults) as (keyof Quotas)[]).map(name => <label key={name}>{quotaLabels[name]}<input type="number" min="0" max="1000000" required value={quotas[name]} onChange={e => setQuotas({ ...quotas, [name]: e.target.valueAsNumber })} /></label>)}</fieldset>
-    <button className="button primary" disabled={busy}>{selected ? 'Salva ruolo, stato e quote' : 'Crea account invitato'}</button></form>
+    }) }}><label>Account name<input value={handle} onChange={e => setHandle(e.target.value)} disabled={!!selected} required pattern="[a-z][a-z0-9_-]{2,47}" /></label>
+    <label>Role<select aria-label={"Account role"} value={role} onChange={e => setRole(e.target.value as Role)}>{(['member', 'operator', 'admin'] as const).map(r => <option key={r}>{r}</option>)}</select></label>
+    {selected && <label className="check-row"><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} />Account enabled</label>}
+    <fieldset className="field-grid"><legend>Total quotas and requests per minute</legend>{(Object.keys(defaults) as (keyof Quotas)[]).map(name => <label key={name}>{quotaLabels[name]}<input type="number" min="0" max="1000000" required value={quotas[name]} onChange={e => setQuotas({ ...quotas, [name]: e.target.valueAsNumber })} /></label>)}</fieldset>
+    <button className="button primary" disabled={busy}>{selected ? "Save role, status and limits" : "Create invited account"}</button></form>
     {selected && <><button className="button danger" disabled={busy} onClick={() => void act(async () => {
       const data = await request<{ login_key: string }>(`/admin/accounts/${selected}/rotate`, 'POST', { ttl_seconds: 2592000 }); setIssued(data.login_key)
-    })}>Ruota chiave e revoca sessioni</button><form onSubmit={e => { e.preventDefault(); void act(async () => { await request(`/admin/accounts/${selected}/arena/${agentId}`, 'POST', {}); setAgentId('') }) }}>
-      <label>ID agente Arena da associare<input value={agentId} onChange={e => setAgentId(e.target.value)} pattern="[0-9a-f]{32}" required /></label><button className="button secondary" disabled={busy}>Associa agente prima dei trial</button></form></>}
-    {issued && <div className="notice"><p>Chiave mostrata una sola volta. Consegnala al destinatario tramite un canale sicuro.</p><label>Nuova chiave<input readOnly type={showIssued ? 'text' : 'password'} autoComplete="off" value={issued} /></label><button className="button tiny" onClick={() => setShowIssued(value => !value)}>{showIssued ? 'Nascondi chiave' : 'Mostra chiave'}</button><button className="button tiny" onClick={() => void navigator.clipboard.writeText(issued).catch(() => setError('Copia non disponibile: mostra e seleziona la chiave nel campo.'))}>Copia chiave</button><button className="button tiny" onClick={() => setIssued('')}>Nascondi e dimentica</button></div>}
+    })}>Rotate access key and sign out sessions</button><form onSubmit={e => { e.preventDefault(); void act(async () => { await request(`/admin/accounts/${selected}/arena/${agentId}`, 'POST', {}); setAgentId('') }) }}>
+      <label>Arena agent identifier to link<input value={agentId} onChange={e => setAgentId(e.target.value)} pattern="[0-9a-f]{32}" required /></label><button className="button secondary" disabled={busy}>Link agent before starting trials</button></form></>}
+    {issued && <div className="notice"><p>This key is shown only once. Share it with the intended recipient through a secure channel.</p><label>New access key<input readOnly type={showIssued ? 'text' : 'password'} autoComplete="off" value={issued} /></label><button className="button tiny" onClick={() => setShowIssued(value => !value)}>{showIssued ? "Hide key" : "Show key"}</button><button className="button tiny" onClick={() => void navigator.clipboard.writeText(issued).catch(() => setError("Copy unavailable. Reveal and select the key in the field."))}>Copy key</button><button className="button tiny" onClick={() => setIssued('')}>Hide and forget</button></div>}
     {error && <p role="alert" className="error">{error}</p>}
   </details>
 }

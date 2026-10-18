@@ -1,4 +1,20 @@
-# Version 1.0 release verification
+# Release verification
+
+## Version 1.1
+
+The English-interface update preserves the scientific protocol, benchmark v0.3
+and SQLite schema 4. The [experience record](english-experience.md) describes the
+readability changes, current installation instructions, presentation and local
+verification scope. Local checks passed 298 Python tests, 39 UI tests and two
+frontend guard tests, TypeScript/build, publication/archive checks and offline
+browser scenarios. Release assets include the compiled English UI. No real
+model calls or production-server deployment are part of this update.
+
+The [1.1.0 release](https://github.com/zalaso/Zone/releases/tag/v1.1.0) links its
+commit, CI and checksummed wheel/source/video assets. The following section is
+the historical 1.0 verification record, not a substitute for the current CI run.
+
+## Version 1.0
 
 This is the release record for the public open-source application, not a claim of centrally hosted service availability. Benchmark v0.3, Forge v1, Arena v1, Integrity v1 and SQLite schema 4 are retained.
 

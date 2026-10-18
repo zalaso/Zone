@@ -9,15 +9,15 @@ All real clients receive only public instructions, message contract and public h
 OpenAI, Anthropic and Gemini are supported. Install the matching extra, or all clients:
 
 ```sh
-python -m pip install 'hidden-physics-lab[all-llm] @ https://github.com/zalaso/Zone/releases/download/v1.0.0/hidden_physics_lab-1.0.0-py3-none-any.whl'
+python -m pip install 'hidden-physics-lab[all-llm] @ https://github.com/zalaso/Zone/releases/download/v1.1.0/hidden_physics_lab-1.1.0-py3-none-any.whl'
 python -m hidden_lab workspace --data ./zone-data --enable-personal-api
 ```
 
 Use the same virtual-environment Python as the original installation. For editable source use `python -m pip install -e '.[workspace,all-llm]'`.
 
-In **Connessioni AI**, choose the provider, give a descriptive name, enter an available model ID and save your API key. Keys are encrypted on the server. The master key is read from `ZONE_CONNECTION_KEY` when set; otherwise `--enable-personal-api` creates and reuses `zone-data/connection.key` with restrictive permissions. Keep that key separate from database backups, and preserve it across restarts. Starting without the flag leaves server-side API storage disabled. Saving a connection makes no inference request.
+In **AI connections**, choose the provider, give a descriptive name, enter an available model ID and save your API key. Keys are encrypted on the server. The master key is read from `ZONE_CONNECTION_KEY` when set; otherwise `--enable-personal-api` creates and reuses `zone-data/connection.key` with restrictive permissions. Keep that key separate from database backups, and preserve it across restarts. Starting without the flag leaves server-side API storage disabled. Saving a connection makes no inference request.
 
-Alternatively select **Sul mio computer, con il connettore**. The provider key stays in `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` in the connector's environment. Do not put the value in a command argument, repository, screenshot or public log.
+Alternatively select **On my computer, through the connector**. The provider key stays in `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` in the connector's environment. Do not put the value in a command argument, repository, screenshot or public log.
 
 ## ChatGPT plan
 
@@ -35,7 +35,7 @@ Optional CLI tools: `python -m hidden_lab chatgpt --help` for account selection,
 
 ## Ollama
 
-Install the `ollama` extra and have Ollama running with a model you already installed. Zone never downloads models. Choose **Ollama locale** in the site and use the same exact model ID:
+Install the `ollama` extra and have Ollama running with a model you already installed. Zone never downloads models. Choose **Local Ollama** in the site and use the same exact model ID:
 
 ```sh
 python -m hidden_lab connector --origin http://127.0.0.1:8767 --local-http --provider ollama --model YOUR_INSTALLED_MODEL --allow-inference --max-jobs 8

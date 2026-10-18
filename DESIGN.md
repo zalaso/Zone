@@ -31,3 +31,12 @@ Guida introduttiva, schede per tutte le modalità, glossario ricercabile e detta
 La vista dell’esperimento usa esclusivamente gli eventi pubblici fino al cursore del replay, rispetta modifiche approvate, distingue osservazioni e previsioni ed esplicita che le linee collegano i campioni. Prima del lancio mostra solo posizione e direzione della velocità iniziali. Nessuna legge o misura viene ricostruita dal browser. Gli assi hanno scale indipendenti dichiarate.
 
 Le formule delimitate in LaTeX vengono impaginate con KaTeX in MathML nativo (browser moderni), senza HTML non fidato, risorse esterne o indebolimento della CSP. Comandi non supportati restano testo; macro e dimensioni sono limitate.
+
+L'interfaccia usa l'inglese. Le note dell'utente e i messaggi scientifici dei modelli
+mantengono la propria lingua. Esperimenti, ipotesi e stati di verifica hanno
+riferimenti leggibili; gli identificativi opachi restano nei dettagli tecnici.
+Nessuna numerazione decorativa nelle modalità. Ordine degli eventi, budget,
+misure e unità restano visibili perché hanno un significato operativo.
+I numeri mostrati usano il punto decimale e precisione limitata, con notazione
+scientifica per valori molto piccoli o grandi. I registri conservano la precisione
+originale e la baseline non stampa sequenze di coefficienti nella spiegazione.

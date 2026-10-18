@@ -7,7 +7,7 @@ export function Formula({ source, display = false }: { source: string; display?:
   useEffect(() => {
     if (!ref.current) return
     try {
-      if (source.length > 2000) throw new Error('Formula troppo lunga')
+      if (source.length > 2000) throw new Error("Formula is too long")
       // Native MathML avoids inline styles and works with the server's strict CSP.
       katex.render(source, ref.current, { displayMode: display, output: 'mathml', trust: false,
         strict: 'error', throwOnError: true, maxSize: 8, maxExpand: 100, macros: {} })

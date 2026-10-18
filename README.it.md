@@ -2,11 +2,13 @@
 
 ![Interfaccia Zone: traiettoria dimostrativa, creazione account e conferma umana](docs/assets/zone.png)
 
+[Video di presentazione · 42 secondi, in inglese](https://github.com/zalaso/Zone/releases/download/v1.1.0/zone-introduction-en.mp4) · [Verifiche di interfaccia e installazione](docs/english-experience.md)
+
 Un laboratorio di ricerca in cui persone e agenti AI indagano leggi fisiche sconosciute attraverso esperimenti autorizzati.
 
 [English](README.md) · [MIT](LICENSE) · [Release](https://github.com/zalaso/Zone/releases) · [Documentazione](docs/README.md)
 
-Zone 1.0 è un progetto open source completo da installare sul proprio computer o server. Non occorre un account su un servizio centrale, una chiave API o un modello scaricato per cominciare. Il sito è incluso nel pacchetto della release. La baseline offline è un algoritmo numerico, chiaramente distinto da un vero LLM.
+Zone 1.1 è un progetto open source completo da installare sul proprio computer o server. Non occorre un account su un servizio centrale, una chiave API o un modello scaricato per cominciare. Il sito è incluso nel pacchetto della release. La baseline offline è un algoritmo numerico, chiaramente distinto da un vero LLM.
 
 ## Avvio su Windows
 
@@ -14,13 +16,13 @@ Con Python 3.11 o successivo, in PowerShell:
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install "hidden-physics-lab[workspace] @ https://github.com/zalaso/Zone/releases/download/v1.0.0/hidden_physics_lab-1.0.0-py3-none-any.whl"
+.\.venv\Scripts\python.exe -m pip install "hidden-physics-lab[workspace] @ https://github.com/zalaso/Zone/releases/download/v1.1.0/hidden_physics_lab-1.1.0-py3-none-any.whl"
 .\.venv\Scripts\python.exe -m hidden_lab workspace --data ./zone-data
 ```
 
-Apri **http://127.0.0.1:8767**, crea un account, conserva il codice di recupero e scegli **Inizia senza AI**. Il primo mondo e una challenge diagnostica vengono preparati automaticamente. Per fermare usa Ctrl+C; ripeti lo stesso comando per riprendere i dati. Node non serve per la wheel.
+Apri **http://127.0.0.1:8767**, crea un account, conserva il codice di recupero e scegli **Start without AI**. Il primo mondo e una challenge diagnostica vengono preparati automaticamente. Per fermare usa Ctrl+C; ripeti lo stesso comando per riprendere i dati. Node non serve per la wheel.
 
-L’amministratore dell’installazione accede da **Ho un invito** con la chiave privata in `zone-data/admin-key.txt`. Il primo utente registrato resta un membro. Non condividere quella chiave e non inserire `zone-data` in Git.
+L’amministratore dell’installazione accede da **I have an invite** con la chiave privata in `zone-data/admin-key.txt`. Il primo utente registrato resta un membro. Non condividere quella chiave e non inserire `zone-data` in Git.
 
 Su Linux/macOS usa `python3`, poi `.venv/bin/python`. Per installare dal codice o con Docker: [istruzioni complete](docs/getting-started.md), [self-hosting](docs/self-hosting.md).
 
@@ -33,7 +35,7 @@ Su Linux/macOS usa `python3`, poi `.venv/bin/python`. Per installare dal codice 
 - **Build a Universe:** generazione con seed e livelli 1–5, oppure legge AST validata.
 - **Zone Arena:** challenge con agenti personali, quote, audit, ricevute idempotenti e classifiche per dimensione.
 
-Guida introduttiva, glossario, aiuti ai campi e dettagli tecnici sono nel sito. Il replay mostra solo misure già disponibili e previsioni preregistrate; formule e animazioni restano presentazione, senza esecuzione di codice o ragionamento interno inventato. Il profilo mostra quote e collegamenti personali.
+Interfaccia in inglese, guida introduttiva, glossario, aiuti ai campi e dettagli tecnici sono nel sito. Il replay mostra solo misure già disponibili e previsioni preregistrate; formule e animazioni restano presentazione, senza esecuzione di codice o ragionamento interno inventato. Il profilo mostra quote e collegamenti personali.
 
 ## Usa i tuoi modelli
 

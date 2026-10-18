@@ -5,7 +5,7 @@ import json
 
 from .agent_contract import (INSTRUCTIONS, ModelRequest, NUMBER, STRING, _project,
                              build_request, obj, public_history, response_schema)
-from .benchmark_baselines import fit_affine_acceleration, predict_affine
+from .benchmark_baselines import predict_affine
 from .benchmark_contract import IDENTIFICATION_INSTRUCTIONS
 from .protocol import ValidationError, decode, require_keys
 from .provider_base import ModelReply, metadata
@@ -128,22 +128,21 @@ class OfflineLabClient:
                        "request_id": request.context["request_id"], "points": points}
         elif "hypothesis" in request.allowed_types and (request.context["phase"] == "predict" or
                 not hypotheses or len(observations) > len(hypotheses) - 1):
-            coefficients = fit_affine_acceleration(request.history)
             message = {"type": "hypothesis", "hypothesis_id": f"offline_h{len(hypotheses)+1}",
-                       "statement": f"Fit affine da sole posizioni pubbliche: ax,ay = c0+c1*y+c2*vx+c3*vy; coefficienti {coefficients}.",
-                       "uncertainties": ["Baseline numerica, non un LLM. Fit limitato e sensibile al rumore; dipendenza da x e non linearità non rappresentate."],
+                       "statement": "A tentative linear acceleration model fitted from public positions. Acceleration may depend on height and velocity.",
+                       "uncertainties": ["Numerical baseline, not an LLM. The fit is limited and sensitive to noise; dependence on horizontal position and nonlinear effects are not represented."],
                        "evidence": evidence}
         elif "experiment_request" in request.allowed_types and len(requests) < 4:
             x, y, vx, vy = ((0, 0, 3, 4), (3, 6, -4, 1), (-3, -5, 6, -4), (2, -3, -5, 5))[len(requests)]
             message = {"type": "experiment_request", "request_id": f"offline_e{len(requests)+1}",
-                       "purpose": "Raccogliere posizioni per un fit affine; policy offline senza accesso alla legge.",
+                       "purpose": "Measure positions to estimate how acceleration depends on height and velocity. This offline baseline cannot read the hidden law.",
                        "experiment": {"initial_position": {"x": x, "y": y}, "initial_velocity": {"x": vx, "y": vy},
                                       "duration": 0.5, "observation_interval": 0.25}}
         else:
             message = {"type": "conclusion", "final_hypothesis_id": hypotheses[-1]["hypothesis_id"] if hypotheses else None,
-                       "summary": "Baseline offline conclusa. Il fit numerico non prova identificazione della legge.",
-                       "evidence": evidence, "limits": ["Classe affine limitata; nessuna prova di equivalenza generale."],
-                       "alternatives": ["Leggi non lineari e dipendenze non osservate restano plausibili."]}
+                       "summary": "Offline investigation complete. The numerical fit does not prove that the true law has been identified.",
+                       "evidence": evidence, "limits": ["Limited linear model; no proof of general equivalence."],
+                       "alternatives": ["Nonlinear laws and unobserved dependencies remain plausible."]}
         return ModelReply(json.dumps({"message": message}, ensure_ascii=False, allow_nan=False),
                           metadata(returned_model="offline-affine-v1", status="completed"))
 

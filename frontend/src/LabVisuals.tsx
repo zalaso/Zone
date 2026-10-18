@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import type { Experiment, LabEvent } from './types'
-import { asExperiment, asText, fmt } from './view'
+import { asExperiment, asText, fmt, referenceName } from './view'
 
 export type Point = { t: number; x: number; y: number }
 function publicPoints(value: unknown): Point[] {
@@ -23,7 +23,7 @@ export function experimentScene(events: LabEvent[]) {
     purpose: asText(proposal?.message.purpose), modified: !!modified }
 }
 
-export function ExperimentStage({ experiment, points = [], prediction = [], label = 'Vista dell’esperimento', failed = false }: {
+export function ExperimentStage({ experiment, points = [], prediction = [], label = "Experiment view", failed = false }: {
   experiment: Experiment | null; points?: Point[]; prediction?: Point[]; label?: string; failed?: boolean
 }) {
   const [index, setIndex] = useState(0)
@@ -51,8 +51,8 @@ export function ExperimentStage({ experiment, points = [], prediction = [], labe
   const velocity = experiment?.initial_velocity
   const magnitude = velocity ? Math.hypot(velocity.x, velocity.y) : 0
   const initialFinite = initial && Number.isFinite(initial.x) && Number.isFinite(initial.y)
-  return <figure className="experiment-stage"><figcaption><strong>{label}</strong><span>{points.length ? 'Misure del laboratorio' : failed ? 'Lancio senza misure' : 'Condizioni iniziali · traiettoria sconosciuta'}</span></figcaption>
-    <svg viewBox="0 0 600 285" role="img" aria-label={points.length ? `Traiettoria: ${points.length} campioni misurati. Punto selezionato a ${fmt(selected?.t)} secondi.` : 'Piano cartesiano con posizione iniziale e direzione della velocità. Nessuna traiettoria simulata.'}>
+  return <figure className="experiment-stage"><figcaption><strong>{label}</strong><span>{points.length ? "Laboratory measurements" : failed ? "No measurements returned" : "Initial conditions · trajectory unknown"}</span></figcaption>
+    <svg viewBox="0 0 600 285" role="img" aria-label={points.length ? `Trajectory: ${points.length} measured samples. Selected point at ${fmt(selected?.t)} seconds.` : "Coordinate plane showing initial position and velocity direction. No simulated trajectory is shown."}>
       <defs><marker id={markerId} markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="currentColor" /></marker></defs>
       {[0, 1, 2, 3, 4].map(i => <g className="plot-grid" key={i}><line x1={52 + i * 126.5} x2={52 + i * 126.5} y1="32" y2="246" /><line x1="52" x2="558" y1={32 + i * 53.5} y2={32 + i * 53.5} /></g>)}
       <g className="plot-axes"><line x1="52" x2="558" y1={y(0)} y2={y(0)} /><line x1={x(0)} x2={x(0)} y1="32" y2="246" /></g>
@@ -60,15 +60,15 @@ export function ExperimentStage({ experiment, points = [], prediction = [], labe
       {showPrediction && prediction.length > 0 && <polyline className="predicted-path" points={prediction.map(p => `${x(p.x)},${y(p.y)}`).join(' ')} />}
       {points.length > 0 ? <><polyline className="observed-path" points={points.map(p => `${x(p.x)},${y(p.y)}`).join(' ')} />{points.map((p, i) => <circle className="sample-point" key={i} cx={x(p.x)} cy={y(p.y)} r="3" />)}{selected && <circle className="current-point" cx={x(selected.x)} cy={y(selected.y)} r="8" />}</> : initialFinite && <><circle className="current-point" cx={x(initial.x)} cy={y(initial.y)} r="8" />{magnitude > 0 && velocity && <line className="velocity-vector" x1={x(initial.x)} y1={y(initial.y)} x2={x(initial.x) + velocity.x / magnitude * 38} y2={y(initial.y) - velocity.y / magnitude * 38} markerEnd={`url(#${markerId})`} />}</>}
     </svg>
-    {points.length > 0 && <div className="playback-controls"><button className="button secondary" onClick={() => { if (index >= points.length - 1) setIndex(0); setPlaying(!playing) }}>{playing ? 'Pausa replay' : 'Riproduci misure'}</button><label>Campione osservato<input type="range" min="0" max={points.length - 1} value={Math.min(index, points.length - 1)} onChange={e => { setPlaying(false); setIndex(Number(e.target.value)) }} /></label><output>t = {fmt(selected?.t)} s · x = {fmt(selected?.x)} m · y = {fmt(selected?.y)} m</output></div>}
-    {prediction.length > 0 && <label className="check-row"><input type="checkbox" checked={showPrediction} onChange={e => setShowPrediction(e.target.checked)} />Mostra previsione preregistrata (tratteggio)</label>}
-    <p>{points.length ? 'Punti blu: misure disponibili anche all’agente. Le linee uniscono i campioni, non aggiungono osservazioni. Assi con scale indipendenti.' : failed ? 'Il laboratorio non ha restituito misure valide. Nessuna traiettoria viene inventata.' : 'Il punto indica la partenza; la freccia mostra solo la direzione della velocità iniziale. Il moto diventa visibile dopo il lancio.'}</p>
+    {points.length > 0 && <div className="playback-controls"><button className="button secondary" onClick={() => { if (index >= points.length - 1) setIndex(0); setPlaying(!playing) }}>{playing ? "Pause replay" : "Play measurements"}</button><label>Observed sample<input type="range" min="0" max={points.length - 1} value={Math.min(index, points.length - 1)} onChange={e => { setPlaying(false); setIndex(Number(e.target.value)) }} /></label><output>t = {fmt(selected?.t)} s · x = {fmt(selected?.x)} m · y = {fmt(selected?.y)} m</output></div>}
+    {prediction.length > 0 && <label className="check-row"><input type="checkbox" checked={showPrediction} onChange={e => setShowPrediction(e.target.checked)} />Show preregistered prediction (dashed)</label>}
+    <p>{points.length ? "Blue points are measurements also available to the agent. Lines connect samples and add no observations. Each axis has its own scale." : failed ? "The laboratory returned no valid measurements. No trajectory is invented." : "The point marks the starting position; the arrow shows only the initial velocity direction. Motion becomes visible after the experiment runs."}</p>
   </figure>
 }
 
 export function PublicExperiment({ events }: { events: LabEvent[] }) {
   const scene = experimentScene(events)
-  return <section className="public-experiment" aria-label="Esperimento visibile all’agente"><div className="section-heading"><h2>Lo stesso esperimento che vede l’agente</h2><span className="data-badge">Solo dati pubblici</span></div>{scene.purpose && <p><strong>Scopo:</strong> {scene.purpose}</p>}{scene.modified && <p>Parametri aggiornati dalla decisione dell’operatore: sono questi quelli comunicati al modello prima della previsione.</p>}<ExperimentStage {...scene} label={scene.requestId ? `Esperimento ${scene.requestId}` : 'L’apparato è pronto'} /><details><summary>Cosa riceve davvero l’AI?</summary><p>Condizioni iniziali, tempi richiesti, decisioni e misure numeriche del registro. Questo grafico è una rappresentazione per te: non viene inviato come immagine al modello. Legge vera e configurazione privata restano nascoste.</p>{scene.experiment && <dl className="experiment-summary"><div><dt>Partenza (x, y)</dt><dd>{fmt(scene.experiment.initial_position.x)}, {fmt(scene.experiment.initial_position.y)} m</dd></div><div><dt>Velocità (vx, vy)</dt><dd>{fmt(scene.experiment.initial_velocity.x)}, {fmt(scene.experiment.initial_velocity.y)} m/s</dd></div><div><dt>Durata / intervallo</dt><dd>{fmt(scene.experiment.duration)} / {fmt(scene.experiment.observation_interval)} s</dd></div></dl>}</details></section>
+  return <section className="public-experiment" aria-label={"Experiment visible to the agent"}><div className="section-heading"><h2>The experiment you and the agent share</h2><span className="data-badge">Public data only</span></div>{scene.purpose && <p><strong>Purpose:</strong> {scene.purpose}</p>}{scene.modified && <p>These settings include the operator's changes. The model receives them before making its prediction.</p>}<ExperimentStage {...scene} label={scene.requestId ? referenceName(events, 'experiment_request', scene.requestId) : "The apparatus is ready"} /><details><summary>What does the AI actually receive?</summary><p>Initial conditions, requested times, decisions and numerical measurements from the history. This graph is for you; it is not sent to the model as an image. The true law and private configuration remain hidden.</p>{scene.experiment && <dl className="experiment-summary"><div><dt>Starting position (x, y)</dt><dd>{fmt(scene.experiment.initial_position.x)}, {fmt(scene.experiment.initial_position.y)} m</dd></div><div><dt>Velocity (vx, vy)</dt><dd>{fmt(scene.experiment.initial_velocity.x)}, {fmt(scene.experiment.initial_velocity.y)} m/s</dd></div><div><dt>Duration / interval</dt><dd>{fmt(scene.experiment.duration)} / {fmt(scene.experiment.observation_interval)} s</dd></div></dl>}</details></section>
 }
 
 export type ActivityKind = 'model' | 'world' | 'experiment' | 'sync'
@@ -76,28 +76,28 @@ export function Activity({ kind }: { kind: ActivityKind }) {
   const [seconds, setSeconds] = useState(0)
   useEffect(() => { setSeconds(0); const start = Date.now(); const timer = window.setInterval(() => setSeconds(Math.floor((Date.now() - start) / 1000)), 1000); return () => window.clearInterval(timer) }, [kind])
   const content = {
-    model: ['L’agente sta preparando una risposta', 'Sta ricevendo la storia pubblica e le osservazioni disponibili. Non vediamo il suo ragionamento interno. Nessun esperimento parte durante l’attesa.'],
-    world: ['Il laboratorio sta preparando il mondo', 'Il server genera e valida il candidato prima di registrarlo. L’animazione indica attesa, non una percentuale di avanzamento.'],
-    experiment: ['Esperimento in esecuzione', 'Il lancio è stato autorizzato. Attendiamo le misure del laboratorio: non vengono anticipate o inventate.'],
-    sync: ['Aggiornamento del laboratorio', 'Attendi la conferma del server prima di compiere un’altra azione.'],
+    model: ["The agent is preparing a response", "It receives the public history and available observations. Its private reasoning is not visible. No experiment runs while you wait."],
+    world: ["The laboratory is preparing your world", "The server generates and validates the candidate before creating it. The animation indicates waiting, not a completion percentage."],
+    experiment: ["Experiment running", "You authorized this experiment. Waiting for measurements from the laboratory; none are shown early or invented."],
+    sync: ["Updating the laboratory", "Wait for the server to confirm before taking another action."],
   }[kind]
-  return <section className={`lab-activity activity-${kind}`} aria-busy="true"><div className="activity-instrument" aria-hidden="true"><span /><span /><span /></div><div><h3 role="status">{content[0]}</h3><p>{content[1]}</p><small>Attesa trascorsa: {seconds} s</small></div></section>
+  return <section className={`lab-activity activity-${kind}`} aria-busy="true"><div className="activity-instrument" aria-hidden="true"><span /><span /><span /></div><div><h3 role="status">{content[0]}</h3><p>{content[1]}</p><small>Time elapsed: {seconds} s</small></div></section>
 }
 
 export function NextStep({ status, managed = false, restricted = false }: { status: string; managed?: boolean; restricted?: boolean }) {
   const text: Record<string, [string, string]> = {
-    discovering: [managed ? 'Chiedi il prossimo passo all’agente' : 'Progetta il tuo prossimo esperimento', managed ? 'Premi Avanza agente: una chiamata, un messaggio. Può proporre un lancio, registrare un’ipotesi o concludere.' : 'Imposta lo scopo e le condizioni iniziali. Puoi anche registrare un’ipotesi o concludere con informazioni insufficienti.'],
-    awaiting_decision: ['Controlla la proposta', restricted ? 'Leggi scopo e parametri. Questa prova mantiene fisse le condizioni: usa le decisioni disponibili, senza modifiche o suggerimenti teorici. Il silenzio non è un’approvazione.' : 'Leggi scopo e parametri, poi approva, modifica o rifiuta. Il silenzio non è un’approvazione.'],
-    awaiting_mode: ['Scegli cosa vuoi imparare', 'Esplorazione raccoglie informazioni. Verifica confronta misure con posizioni previste e registrate prima del lancio.'],
-    awaiting_prediction: ['Registra le posizioni previste', managed ? 'Chiedi un passo dell’agente. Deve prevedere sui parametri definitivi approvati; il lancio resta bloccato fino a quel momento.' : 'Seleziona un’ipotesi e inserisci x e y per ogni tempo. La previsione si congela e non potrà essere corretta dopo le misure.'],
-    ready_to_run: ['Tutto pronto: autorizza il lancio', 'Il pulsante Esegui consuma un esperimento, anche se la traiettoria fallisce. L’approvazione precedente non lo ha ancora eseguito.'],
-    awaiting_answer: ['L’agente ti ha fatto una domanda', 'Rispondi nel modulo. Suggerimenti teorici possono influenzare l’indagine e saranno registrati.'],
-    awaiting_submission: ['L’indagine è conclusa: prova su stati nuovi', 'I probe sono stati pubblicati. Consegna accelerazioni numeriche; gli errori verranno valutati senza un punteggio unico.'],
-    scoring_pending: ['La risposta è congelata', 'Completa la valutazione quando disponibile. Nessun esperimento verrà ripetuto.'],
-    scored: ['Risultato disponibile', 'Rileggi misure e ipotesi nel replay. Un errore basso sostiene la previsione sui punti valutati, non prova una legge in ogni possibile stato.'],
-    stopped: ['Indagine arrestata', 'I registri rimangono disponibili. Un arresto non equivale a una conclusione scientifica dell’agente.'],
-    execution_started: ['Lancio interrotto: controlla il registro', 'Non rilanciare automaticamente. Usa l’arresto dell’indagine per chiudere l’esecuzione interrotta.'],
-    revealed: ['Mondo rivelato', 'La legge privata è ora visibile all’operatore. Questa indagine non è più una prova cieca.'],
+    discovering: [managed ? "Ask the agent for its next step" : "Design your next experiment", managed ? "Choose Ask for next step: one call, one message. The agent can propose an experiment, record a hypothesis or conclude." : "Set a purpose and initial conditions. You can also record a hypothesis or conclude that the information is insufficient."],
+    awaiting_decision: ["Decide what to run", restricted ? "Read the purpose and settings. This trial keeps conditions fixed: use the available decisions without changes or theoretical hints. Silence is never approval." : "Read the purpose and settings, then approve, modify or reject. Silence is never approval."],
+    awaiting_mode: ["Choose what you want to learn", "Exploration gathers information. Verification compares measurements with predicted positions recorded before the experiment runs."],
+    awaiting_prediction: ["Record the predicted positions", managed ? "Ask the agent for a step. It must predict using the final approved settings before you can run the experiment." : "Select a hypothesis and enter x and y for each time. Predictions are locked and cannot be changed after measuring."],
+    ready_to_run: ["Ready: authorize the experiment", "Run experiment uses one experiment from your budget, even if the trajectory fails. Your earlier approval has not run it yet."],
+    awaiting_answer: ["The agent has a question for you", "Answer in the form below. Theoretical hints can influence the investigation and will be recorded."],
+    awaiting_submission: ["Investigation concluded: test new states", "New test states are available. Submit numerical accelerations. Errors are evaluated separately, without a combined score."],
+    scoring_pending: ["Your answer is locked", "Complete the evaluation when it is available. No experiment will be repeated."],
+    scored: ["Results available", "Review measurements and hypotheses in the history. Low error supports predictions on the evaluated states; it does not prove a law for every possible state."],
+    stopped: ["Investigation stopped", "The history remains available. Stopping is not a scientific conclusion from the agent."],
+    execution_started: ["Experiment interrupted: check the history", "Do not run it again automatically. Stop the investigation to close the interrupted execution."],
+    revealed: ["World revealed", "The private law is now visible to the operator. This investigation is no longer a blind test."],
   }
   const current = text[status]
   return current && <section className="next-step"><h2>{current[0]}</h2><p>{current[1]}</p></section>

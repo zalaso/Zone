@@ -14,7 +14,7 @@ Un laboratorio pubblico in cui creare un account, collegare un modello personale
 
 ## Brand Personality
 
-Chiara, scientifica, accessibile. Direzione confermata dall'autore il 10 ottobre 2026. Voce italiana concreta, senza promesse di scoperta o classifiche assolute.
+Chiara, scientifica, accessibile. Direzione confermata dall'autore il 10 ottobre 2026. Interfaccia in inglese, con voce concreta, senza promesse di scoperta o classifiche assolute.
 
 ## Anti-references
 

@@ -41,7 +41,7 @@
 .mode-entry { display:flex; align-items:center; gap:1.2rem; text-align:left; border:0; border-bottom:1px solid var(--zone-line); background:transparent; color:var(--zone-ink); padding:1.8rem 1rem; min-height:140px; transition:background 160ms }
 .mode-entry:nth-child(odd) { border-right:1px solid var(--zone-line) }
 .mode-entry:hover { background:var(--zone-accent-soft) }
-.mode-entry>span:nth-child(2) { flex:1 }
+.mode-entry>span:first-child { flex:1 }
 .mode-entry strong { display:block; font-size:1.15rem; font-weight:600; margin-bottom:.5rem }
 .mode-entry span span { display:block; font-size:.85rem; color:var(--zone-muted); line-height:1.6; max-width:36ch }
 .mode-number { color:var(--zone-muted); align-self:flex-start; font: .75rem ui-monospace,monospace; padding-top:.3rem }

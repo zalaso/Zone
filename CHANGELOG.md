@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0 — 2026-10-18
+
+- English interface throughout onboarding, six modes, AI connections, account, guide and staff controls. User-authored notes and real model replies keep their original language.
+- Readable experiment/hypothesis/state references instead of opaque IDs; identifiers remain available in explicit technical details and unchanged API records. Human-readable states and reviewed error messages.
+- English number formatting, bounded displayed decimals and scientific notation for very small/large values. Measurements and machine-readable records retain their precision.
+- Offline baseline explanations no longer dump coefficient arrays. Its numerical fitting and prediction algorithm is unchanged.
+- Fresh English application screenshot and a 42-second silent introduction with captions and actual product captures; no real model calls, generated evidence or music.
+- Installation guide and selectors updated; regression coverage for readable references, finite numbers, stop reasons and safe English errors. Database schema 4 and scientific/benchmark protocols are unchanged.
+
+
 ## 1.0.0 — 2026-10-18
 
 First complete public, self-hosted application release, licensed MIT.

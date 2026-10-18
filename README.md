@@ -4,11 +4,13 @@
 
 [![Offline quality](https://github.com/zalaso/Zone/actions/workflows/ci.yml/badge.svg)](https://github.com/zalaso/Zone/actions/workflows/ci.yml) · [MIT](LICENSE) · [Releases](https://github.com/zalaso/Zone/releases) · [Italiano](README.it.md)
 
-Set a particle's initial conditions, authorize a launch and observe its motion. Propose an hypothesis, preregister numerical predictions and test them against new measurements. The law stays private. The AI proposes; **a person authorizes every experiment**.
+Set a particle's initial conditions, authorize a launch and observe its motion. Propose a hypothesis, preregister numerical predictions and test them against new measurements. The law stays private. The AI proposes; **a person authorizes every experiment**.
 
-Zone 1.0 is a complete, self-hosted application and research toolkit. Run it on your own computer or server; no central Zone account, paid service or provider credential is required to start. The default agent is an explicitly labelled numerical offline baseline, not an LLM. The web interface includes an Italian guided onboarding, glossary, interactive trajectories and mathematical notation.
+Zone 1.1 is a complete, self-hosted application and research toolkit. Run it on your own computer or server; no central Zone account, paid service or provider credential is required to start. The default agent is an explicitly labelled numerical offline baseline, not an LLM. The web interface includes English guided onboarding, glossary, interactive trajectories and mathematical notation.
 
 ![Zone interface with an illustrative trajectory, account creation and explicit human confirmation](docs/assets/zone.png)
+
+[Watch the 42-second introduction](https://github.com/zalaso/Zone/releases/download/v1.1.0/zone-introduction-en.mp4) · [Interface and installation checks](docs/english-experience.md)
 
 *Actual offline application. The landing-page trajectory is labelled demonstration data, not evidence from a hidden evaluation world.*
 
@@ -20,7 +22,7 @@ Python 3.11 or later. The release wheel includes the compiled website: **Node is
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install "hidden-physics-lab[workspace] @ https://github.com/zalaso/Zone/releases/download/v1.0.0/hidden_physics_lab-1.0.0-py3-none-any.whl"
+.\.venv\Scripts\python.exe -m pip install "hidden-physics-lab[workspace] @ https://github.com/zalaso/Zone/releases/download/v1.1.0/hidden_physics_lab-1.1.0-py3-none-any.whl"
 .\.venv\Scripts\python.exe -m hidden_lab workspace --data ./zone-data
 ```
 
@@ -28,13 +30,13 @@ python -m venv .venv
 
 ```sh
 python3 -m venv .venv
-.venv/bin/python -m pip install 'hidden-physics-lab[workspace] @ https://github.com/zalaso/Zone/releases/download/v1.0.0/hidden_physics_lab-1.0.0-py3-none-any.whl'
+.venv/bin/python -m pip install 'hidden-physics-lab[workspace] @ https://github.com/zalaso/Zone/releases/download/v1.1.0/hidden_physics_lab-1.1.0-py3-none-any.whl'
 .venv/bin/python -m hidden_lab workspace --data ./zone-data
 ```
 
-Open **http://127.0.0.1:8767**, create an account, save the recovery code and choose **Inizia senza AI**. A world and diagnostic Arena challenge are initialized automatically. Stop with Ctrl+C; start the same command to resume. Your data remains in the private `zone-data` folder.
+Open **http://127.0.0.1:8767**, create an account, save the recovery code and choose **Start without AI**. A world and diagnostic Arena challenge are initialized automatically. Stop with Ctrl+C; start the same command to resume. Your data remains in the private `zone-data` folder.
 
-The installation owner can sign in through **Ho un invito** using `zone-data/admin-key.txt`. The first registrant never gets administrator privileges. Protect this file; it is not shown by the site or sent to a model. [Installation, owner recovery and troubleshooting](docs/getting-started.md).
+The installation owner can sign in through **I have an invite** using `zone-data/admin-key.txt`. The first registrant never gets administrator privileges. Protect this file; it is not shown by the site or sent to a model. [Installation, owner recovery and troubleshooting](docs/getting-started.md).
 
 Prefer Docker? Clone the repository and run `docker compose up --build`; open the same loopback URL. Data stays in a named volume. [Docker and HTTPS self-hosting](docs/self-hosting.md).
 
@@ -57,7 +59,7 @@ The UI explains each phase and setting. Watch public measurements with play/paus
 - **ChatGPT plan:** authorize through the official local/open-source OAuth flow; the connector keeps tokens on your computer. Eligibility and provider preview limitations apply.
 - **Ollama:** use a model already installed locally. Zone does not download models or expose Ollama to the Internet.
 
-Install the optional provider extra, choose an explicit model and configure **Connessioni AI**. There is no costly default model, no inference at startup and no automatic billing fallback. Real requests consume your own provider allowance. [Exact setup and commands](docs/ai-connections.md).
+Install the optional provider extra, choose an explicit model and configure **AI connections**. There is no costly default model, no inference at startup and no automatic billing fallback. Real requests consume your own provider allowance. [Exact setup and commands](docs/ai-connections.md).
 
 ## Research toolkit
 

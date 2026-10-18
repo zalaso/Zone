@@ -16,36 +16,36 @@ try {
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/')
-  await page.getByLabel('Nome utente').waitFor()
+  await page.getByLabel("Username").waitFor()
   await page.screenshot({ path: `${out}/access-desktop.png`, fullPage: true })
   const handle = `ws${Date.now().toString(36)}`
-  await page.getByLabel('Nome utente').fill(handle)
+  await page.getByLabel("Username").fill(handle)
   await page.getByLabel('Password', { exact: true }).fill('synthetic-browser-password-123')
-  await page.getByRole('button', { name: 'Crea account e continua' }).click()
-  await page.getByLabel('Codice di recupero').waitFor()
-  await page.getByRole('button', { name: 'Ho conservato il codice' }).click()
-  await page.getByRole('heading', { name: /Quale universo/ }).waitFor()
+  await page.getByRole('button', { name: "Create account and continue" }).click()
+  await page.getByLabel("Recovery code").waitFor()
+  await page.getByRole('button', { name: "I have saved my code" }).click()
+  await page.getByRole('heading', { name: /Which universe/ }).waitFor()
   await page.screenshot({ path: `${out}/home-desktop.png`, fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Home senza overflow mobile')
   await page.screenshot({ path: `${out}/home-mobile.png`, fullPage: true })
-  await page.getByRole('button', { name: 'Connessioni AI', exact: true }).click()
+  await page.getByRole('button', { name: "AI connections", exact: true }).click()
   await page.getByRole('button', { name: 'ChatGPT', exact: true }).click()
-  await page.getByLabel('ID modello').fill('synthetic-not-a-real-model')
-  await page.getByRole('button', { name: 'Prepara Sign in with ChatGPT' }).click()
-  await page.getByLabel('Chiave del connettore, mostrata una sola volta').waitFor()
-  assert(await page.getByLabel('Chiave del connettore, mostrata una sola volta').inputValue())
-  await page.getByRole('button', { name: 'Ho conservato la chiave' }).click()
-  await page.getByRole('button', { name: 'Usa baseline offline', exact: true }).click()
+  await page.getByLabel("Model ID").fill('synthetic-not-a-real-model')
+  await page.getByRole('button', { name: "Set up Sign in with ChatGPT" }).click()
+  await page.getByLabel("Connector key, shown only once").waitFor()
+  assert(await page.getByLabel("Connector key, shown only once").inputValue())
+  await page.getByRole('button', { name: "I have saved the key" }).click()
+  await page.getByRole('button', { name: "Use offline baseline", exact: true }).click()
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Connessioni senza overflow mobile')
   await page.screenshot({ path: `${out}/connections-mobile.png`, fullPage: true })
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await page.getByRole('button', { name: 'Esplora le modalità', exact: true }).click()
-  await page.getByRole('button', { name: /06 Zone Arena/ }).click()
-  await page.getByRole('button', { name: 'Registra con il modello selezionato' }).click()
-  await page.getByLabel('Agente', { exact: true }).locator('option').nth(1).waitFor({ state: 'attached' })
-  await page.getByRole('button', { name: 'Avvia trial personale' }).click()
-  await page.getByRole('button', { name: 'Avanza agente · una chiamata' }).waitFor()
+  await page.getByRole('button', { name: "Explore modes", exact: true }).click()
+  await page.getByRole('button', { name: /Zone Arena/ }).click()
+  await page.getByRole('button', { name: "Register with the selected model" }).click()
+  await page.getByLabel("Agent", { exact: true }).locator('option').nth(1).waitFor({ state: 'attached' })
+  await page.getByRole('button', { name: "Start your trial" }).click()
+  await page.getByRole('button', { name: "Ask for next step · one call" }).waitFor()
   const listing = await (await page.request.get('/v1/my/arena')).json()
   const id = listing.trials.at(-1).session_id
   const expectedExperiments = listing.trials.at(-1).rules.experiment_budget
@@ -57,9 +57,9 @@ try {
     assert.equal(state.executed_experiments, runs, 'Solo il clic Esegui può aumentare i lanci')
     if (state.status === 'scored') break
     const label = {
-      discovering: 'Avanza agente · una chiamata', awaiting_submission: 'Avanza agente · una chiamata',
-      awaiting_decision: 'Approva richiesta', awaiting_mode: 'Conferma esplorazione Arena',
-      ready_to_run: 'Esegui questo esperimento', scoring_pending: 'Completa valutazione',
+      discovering: "Ask for next step · one call", awaiting_submission: "Ask for next step · one call",
+      awaiting_decision: "Approve proposal", awaiting_mode: "Confirm Arena exploration",
+      ready_to_run: "Run this experiment", scoring_pending: "Complete evaluation",
     }[state.status]
     assert(label, `Stato inatteso ${state.status}`)
     await new Promise(resolve => setTimeout(resolve, 2100)) // respect the account write quota
@@ -75,12 +75,12 @@ try {
   await page.screenshot({ path: `${out}/arena-desktop.png`, fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Arena senza overflow mobile')
-  await page.getByRole('button', { name: 'Le mie sessioni', exact: true }).click()
-  await page.getByRole('button', { name: 'Apri indagine', exact: true }).click()
-  await page.getByText(`scored · ${expectedExperiments} lanci · ${expectedExperiments} osservazioni`, { exact: true }).waitFor()
+  await page.getByRole('button', { name: "My investigations", exact: true }).click()
+  await page.getByRole('button', { name: "Open investigation", exact: true }).click()
+  await page.getByText(`Results available · ${expectedExperiments} experiments · ${expectedExperiments} observations`, { exact: true }).waitFor()
   assert.equal(await page.evaluate(() => localStorage.length + sessionStorage.length), 0)
-  await page.getByRole('button', { name: 'Esci dall’account', exact: true }).click()
-  await page.getByLabel('Nome utente').waitFor()
+  await page.getByRole('button', { name: "Sign out", exact: true }).click()
+  await page.getByLabel("Username").waitFor()
   assert.deepEqual(errors, [])
   console.log('Workspace browser OK: registrazione, recupero mostrato una volta, connettore senza inferenza, Arena offline con lanci espliciti secondo il budget della challenge, scoring, riapertura, logout; desktop e mobile senza overflow.')
 } catch (error) {

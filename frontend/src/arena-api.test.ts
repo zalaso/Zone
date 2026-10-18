@@ -19,6 +19,6 @@ it('usa versione, token in header e la stessa chiave per il retry manuale', asyn
 it('un errore di rete non ripete la richiesta', async () => {
   const fetch = vi.fn().mockRejectedValue(new Error('offline'))
   vi.stubGlobal('fetch', fetch)
-  await expect(arenaApi.write('sessions/id/run', {}, 'test')).rejects.toThrow('backend locale')
+  await expect(arenaApi.write('sessions/id/run', {}, 'test')).rejects.toThrow('not responding')
   expect(fetch).toHaveBeenCalledTimes(1)
 })

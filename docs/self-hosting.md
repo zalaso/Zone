@@ -12,7 +12,7 @@ docker compose up --build
 
 Open http://127.0.0.1:8767, create a member account and save its recovery code. The named volume contains private data; containers can be recreated without losing it. `docker compose down` stops Zone and retains the volume. Do not add `--volumes` unless you intend to delete your installation.
 
-For host-owner access, read `/data/admin-key.txt` from the running container in your trusted terminal and use **Ho un invito**. Do not post that key in an issue. Administrative keys expire; rotate them or use the documented `identity recover-admin` command inside your own container.
+For host-owner access, read `/data/admin-key.txt` from the running container in your trusted terminal and use **I have an invite**. Do not post that key in an issue. Administrative keys expire; rotate them or use the documented `identity recover-admin` command inside your own container.
 
 API storage is disabled by default. To enable personal provider keys:
 

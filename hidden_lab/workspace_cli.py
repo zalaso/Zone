@@ -79,7 +79,7 @@ def prepare(data, *, origin, static_dir, registration=True, personal_api=False, 
         # No HTTP self-call, model, private prompt or test client involved.
         with repo._connect() as db:
             db.execute('INSERT INTO arena_challenges VALUES(?,?,?,?,0)',
-                       (secrets.token_hex(16), record['world_id'], 'Prima challenge · diagnostica locale',
+                       (secrets.token_hex(16), record['world_id'], 'First challenge · local diagnostic',
                         json.dumps(rules_for(record, 30, 3))))
     return create_app(repository=repo, auth_mode='accounts', public_origin=origin,
         secure_cookies=urlsplit(origin).scheme == 'https', public_workspace=True,
@@ -110,9 +110,9 @@ def run_command(args):
     from .runtime_ops import configure_logging
     configure_logging()
     print(f'Zone: {origin}')
-    print('Dati privati:', Path(args.data).resolve())
-    print('Accesso amministratore: Ho un invito; chiave in admin-key.txt (non condividerla).')
-    print('Nessuna inferenza automatica. Collega la tua AI oppure inizia senza modello.')
+    print('Private data:', Path(args.data).resolve())
+    print('Owner access: choose I have an invite; the key is in admin-key.txt. Keep it private.')
+    print('No automatic inference. Connect your own AI or start without a model.')
     import uvicorn
     uvicorn.run(app, host=args.host, port=args.port, access_log=False, proxy_headers=False)
     return 0
