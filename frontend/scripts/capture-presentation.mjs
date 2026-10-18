@@ -1,7 +1,7 @@
 // Local product captures and a silent English introduction. No model calls.
 // Requires a fresh loopback workspace, Playwright and FFmpeg on PATH.
 import assert from 'node:assert/strict'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { chromium } from 'playwright'
@@ -79,9 +79,10 @@ try {
     await poster.screenshot({ path: `${out}/slide-${i + 1}.png` })
   }
   const ffmpeg = process.env.ZONE_FFMPEG || 'ffmpeg'
-  // Separate short segments avoid huge in-memory frame arrays. Six seven-second scenes.
-  for (let i = 1; i <= slides.length; i++) execFileSync(ffmpeg, ['-y', '-loglevel', 'error', '-loop', '1', '-i', `${out}/slide-${i}.png`, '-t', '7', '-vf', 'fps=24,fade=t=in:st=0:d=0.25,fade=t=out:st=6.75:d=0.25,format=yuv420p', '-c:v', 'libx264', '-preset', 'fast', '-crf', '21', '-an', `${out}/part-${i}.mp4`], { stdio: 'inherit' })
-  writeFileSync(`${out}/concat.txt`, slides.map((_, i) => `file 'part-${i + 1}.mp4'`).join('\n'))
-  execFileSync(ffmpeg, ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', `${out}/concat.txt`, '-c', 'copy', '-movflags', '+faststart', `${out}/zone-introduction-en.mp4`], { stdio: 'inherit' })
+  // One encoding context keeps codec parameters consistent across all six scenes.
+  const inputs = slides.flatMap((_, i) => ['-loop', '1', '-framerate', '24', '-t', '7', '-i', `${out}/slide-${i + 1}.png`])
+  const filters = slides.map((_, i) => `[${i}:v]setpts=PTS-STARTPTS,setsar=1,fade=t=in:st=0:d=0.25,fade=t=out:st=6.75:d=0.25,format=yuv420p[v${i}]`)
+  filters.push(`${slides.map((_, i) => `[v${i}]`).join('')}concat=n=${slides.length}:v=1:a=0[video]`)
+  execFileSync(ffmpeg, ['-y', '-loglevel', 'error', ...inputs, '-filter_complex', filters.join(';'), '-map', '[video]', '-c:v', 'libx264', '-preset', 'fast', '-crf', '21', '-an', '-movflags', '+faststart', `${out}/zone-introduction-en.mp4`], { stdio: 'inherit' })
   console.log(`English screenshots and 42-second 1080p MP4 saved to ${out}. No provider calls.`)
 } finally { await browser.close() }
