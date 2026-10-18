@@ -327,10 +327,21 @@ class TrialTests(unittest.TestCase):
             self.assertIn("Passive sequential RMSE", render_report(aggregate))
 
     def test_existing_v01_results_can_still_be_aggregated(self):
-        legacy = ROOT / "benchmark_data" / "example" / "runs"
-        if not legacy.exists():
-            self.skipTest("Esempio v0.1 non presente")
-        result = aggregate_trials(legacy)
+        # A clean public checkout must not depend on ignored operator datasets.
+        suite = make_suite(9876543210123456789, 3, "0.1")
+        world = suite["worlds"][0]
+        with tempfile.TemporaryDirectory() as temp:
+            for condition in ("prior_only", "passive_fixed", "active"):
+                client = BenchmarkFixtureClient(parse_config(world["config"]).world)
+                directory = Path(temp) / condition
+                trial = BenchmarkTrial(directory, suite, world["id"], condition,
+                                       client, AgentSettings("benchmark-fixture-v1"))
+                saved = trial.run()
+                # Older results predate these additive provenance fields.
+                for key in ("code_version", "code_hash", "provider_config_hash"):
+                    saved.pop(key)
+                (directory / "result.json").write_text(json.dumps(saved), encoding="utf-8")
+            result = aggregate_trials(temp)
         self.assertEqual(result["included_count"], 3)
         self.assertEqual(len(result["paired"]), 1)
         self.assertEqual(result["by_condition"]["passive_sequential"]["n"], 0)
