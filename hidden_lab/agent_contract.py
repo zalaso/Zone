@@ -17,6 +17,9 @@ riconosci nella conclusione eventuali suggerimenti teorici, separandoli dalle mi
 Richiesta, ipotesi e previsione sono messaggi distinti. La decisione umana può cambiare i parametri.
 In fase predict usa la configurazione APPROVATA e tutti i tempi indicati, senza inventare osservazioni.
 Se manca un'ipotesi, registrala prima della previsione. Usa pochi punti e numeri, mai codice o formule eseguibili.
+Il numero di punti e' 1 + duration / observation_interval, includendo t=0.
+duration deve essere un multiplo dell'intervallo e non superare
+next_action.sampling_constraint.max_duration_in_observation_intervals * observation_interval.
 Gli ID devono essere nuovi, iniziare con una lettera ASCII, massimo 48 caratteri [A-Za-z0-9_-].
 Testi non vuoti di massimo 2000 caratteri. I riferimenti alle evidenze sono ID di esperimenti riusciti.
 Concludi quando hai informazioni sufficienti, i budget sono quasi esauriti o non puoi proseguire.
@@ -145,6 +148,10 @@ def build_request(events, settings, phase, remaining_calls, remaining_turns):
                else ["experiment_request", "hypothesis", "operator_question", "conclusion"])
     context = {"phase": phase, "allowed_types": allowed, "remaining_model_calls": remaining_calls,
                "remaining_turns": remaining_turns, "max_observation_points": settings.max_points}
+    context["sampling_constraint"] = {
+        "point_count": "1 + duration / observation_interval",
+        "max_duration_in_observation_intervals": settings.max_points - 1,
+        "duration_must_be_multiple_of_interval": True}
     if phase == "predict":
         # Deriva la configurazione solo dagli eventi pubblici, mai da Session/config.
         request = next(e["message"] for e in reversed(history) if e["message"]["type"] == "experiment_request")

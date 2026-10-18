@@ -1,0 +1,9 @@
+[Unit]
+Description=Zone private beta SQLite online backup
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/zone/zone-maintenance.py backup
+UMask=0077
+TimeoutStartSec=120

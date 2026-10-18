@@ -69,6 +69,9 @@ def install_operations(app, repository):
                 db.execute("SELECT seq FROM events LIMIT 1").fetchone()
                 db.execute("SELECT key_hash FROM arena_receipts LIMIT 1").fetchone()
                 db.execute("SELECT id FROM integrity_cases LIMIT 1").fetchone()
+                for table in ('accounts', 'account_sessions', 'session_owners', 'arena_owners', 'account_rates', 'account_audit',
+                              'account_passwords', 'ai_connections', 'ai_preferences', 'connector_jobs', 'workspace_worlds'):
+                    db.execute(f'SELECT 1 FROM {table} LIMIT 1').fetchone()
         except (ValidationError, sqlite3.Error, OSError):
             return JSONResponse({"status": "unavailable"}, status_code=503)
         return {"status": "ready", "zone_version": __version__, "schema_version": SCHEMA_VERSION}

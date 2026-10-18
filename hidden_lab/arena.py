@@ -20,6 +20,15 @@ from .local_worlds import digest
 from .integrity_store import IntegrityCatalog
 
 
+def rules_for(record, messages, points):
+    if record["sha256"] != digest({key: value for key, value in record.items() if key != "sha256"}):
+        raise ValidationError("Record mondo alterato.")
+    return {"arena_version": VERSION, "world_hash": record["sha256"],
+            "probes_hash": fingerprint(record["probes"]), "scorer_version": "identification-v1",
+            "secret_grid_version": IDENTIFICATION_VERSION, "experiment_budget": record["config"]["experiment_budget"],
+            "max_messages": messages, "max_points": points, "execution_policy": "exploration_only"}
+
+
 def install_arena(app, repository, operator_token, *, clock=None):
     # Lazy import avoids a circular module dependency; shared public projection is authoritative.
     from .backend import OPERATOR_TYPES, _body, _public_event, _version
@@ -61,14 +70,6 @@ def install_arena(app, repository, operator_token, *, clock=None):
             raise ValidationError("Cohort incompatibile: mondo, probe, budget o limiti cambiati.")
         return stored, state, ch, row[1]
 
-    def rules_for(record, messages, points):
-        if record["sha256"] != digest({key: value for key, value in record.items() if key != "sha256"}):
-            raise ValidationError("Record mondo alterato.")
-        return {"arena_version": VERSION, "world_hash": record["sha256"],
-                "probes_hash": fingerprint(record["probes"]), "scorer_version": "identification-v1",
-                "secret_grid_version": IDENTIFICATION_VERSION, "experiment_budget": record["config"]["experiment_budget"],
-                "max_messages": messages, "max_points": points, "execution_policy": "exploration_only"}
-
     def status(db, sid, principal, *, events=False):
         stored, state, ch, aid = trial(db, sid, principal)
         value = {"session_id": sid, "challenge_id": ch["challenge_id"], "agent_id": aid,
@@ -81,7 +82,7 @@ def install_arena(app, repository, operator_token, *, clock=None):
         if embargo:
             value["scores"] = None
         calls, invalid = db.execute("SELECT COUNT(*),COALESCE(SUM(status>=400),0) FROM arena_audit "
-            "WHERE principal=? AND action LIKE ?", (aid, f"/v1/arena/sessions/{sid}/%")).fetchone()
+            "WHERE principal=? AND (action LIKE ? OR action LIKE ?)", (aid, f"/v1/arena/sessions/{sid}/%", f"/v1/my/arena/trials/{sid}/%")).fetchone()
         value["resources"] = {"agent_requests": calls, "invalid_requests": invalid,
                               "external_model_calls": None, "external_tokens": None, "external_cost": None}
         if events:
@@ -130,44 +131,45 @@ def install_arena(app, repository, operator_token, *, clock=None):
     async def get_session(sid: str, request: Request):
         return store.read(headers(request), lambda db, p: status(db, sid, p, events=True))
 
+    def leaderboard_data(db, p, cid):
+        ch = challenge(db, cid)
+        if not ch["closed"] and p != "operator":
+            raise HTTPException(403, "Leaderboard disponibile agli agenti dopo la chiusura.")
+        values = [status(db, row[0], "operator") for row in
+                  db.execute("SELECT session_id FROM arena_trials WHERE challenge_id=? ORDER BY rowid", (cid,)).fetchall()]
+        # One ranking per dimension; missing metrics never receive a synthetic value.
+        dimensions = {
+            "acceleration_rmse": ("prediction", "acceleration_rmse"),
+            "interpolation_rmse": ("prediction", "by_category", "interpolation", "acceleration_rmse"),
+            "extrapolation_rmse": ("prediction", "by_category", "extrapolation", "acceleration_rmse"),
+            "functional_rmse": ("functional", "metrics", "acceleration_rmse"),
+            "ast_nodes": ("complexity", "node_count"),
+            "missed_dependencies": ("dependencies", "missed_count"),
+            "spurious_dependencies": ("dependencies", "spurious_count"),
+            "calibration_nll": ("calibration", "mean_gaussian_nll"),
+        }
+        boards = {}
+        for name, path in dimensions.items():
+            measured = []
+            for value in values:
+                if not value["integrity"]["ranking_allowed"]:
+                    continue
+                metric = value["scores"]
+                for key in path:
+                    metric = metric.get(key) if isinstance(metric, dict) else None
+                if type(metric) in (int, float):
+                    measured.append({"session_id": value["session_id"], "value": metric})
+            measured.sort(key=lambda item: (item["value"], item["session_id"]))
+            for index, item in enumerate(measured):
+                item["rank"] = 1 + sum(other["value"] < item["value"] for other in measured[:index])
+            boards[name] = measured
+        return {"challenge": public_challenge(ch), "dimensions": boards, "trials": values,
+                "comparison_scope": "blind_test" if values and all(v["integrity"]["state"] == "blind_test" for v in values) else "diagnostic_untracked",
+                "notice": "Metriche separate, nessun punteggio combinato. Modello dichiarato, non attestato; costi esterni non misurati."}
+
     @app.get("/v1/arena/challenges/{cid}/leaderboard")
     async def leaderboard(cid: str, request: Request):
-        def read(db, p):
-            ch = challenge(db, cid)
-            if not ch["closed"] and p != "operator":
-                raise HTTPException(403, "Leaderboard disponibile agli agenti dopo la chiusura.")
-            values = [status(db, row[0], "operator") for row in
-                      db.execute("SELECT session_id FROM arena_trials WHERE challenge_id=? ORDER BY rowid", (cid,)).fetchall()]
-            # One ranking per dimension; missing metrics never receive a synthetic value.
-            dimensions = {
-                "acceleration_rmse": ("prediction", "acceleration_rmse"),
-                "interpolation_rmse": ("prediction", "by_category", "interpolation", "acceleration_rmse"),
-                "extrapolation_rmse": ("prediction", "by_category", "extrapolation", "acceleration_rmse"),
-                "functional_rmse": ("functional", "metrics", "acceleration_rmse"),
-                "ast_nodes": ("complexity", "node_count"),
-                "missed_dependencies": ("dependencies", "missed_count"),
-                "spurious_dependencies": ("dependencies", "spurious_count"),
-                "calibration_nll": ("calibration", "mean_gaussian_nll"),
-            }
-            boards = {}
-            for name, path in dimensions.items():
-                measured = []
-                for value in values:
-                    if not value["integrity"]["ranking_allowed"]:
-                        continue
-                    metric = value["scores"]
-                    for key in path:
-                        metric = metric.get(key) if isinstance(metric, dict) else None
-                    if type(metric) in (int, float):
-                        measured.append({"session_id": value["session_id"], "value": metric})
-                measured.sort(key=lambda item: (item["value"], item["session_id"]))
-                for index, item in enumerate(measured):
-                    item["rank"] = 1 + sum(other["value"] < item["value"] for other in measured[:index])
-                boards[name] = measured
-            return {"challenge": public_challenge(ch), "dimensions": boards, "trials": values,
-                    "comparison_scope": "blind_test" if values and all(v["integrity"]["state"] == "blind_test" for v in values) else "diagnostic_untracked",
-                    "notice": "Metriche separate, nessun punteggio combinato. Modello dichiarato, non attestato; costi esterni non misurati."}
-        return store.read(headers(request), read)
+        return store.read(headers(request), lambda db, p: leaderboard_data(db, p, cid))
 
     def action(db, principal, kind, resource, body):
         if kind == "challenges":
@@ -295,12 +297,12 @@ def install_arena(app, repository, operator_token, *, clock=None):
             repository._append(db, resource, state.version, [("apparatus", {"type": "reveal_recorded", "world_id": stored["world_id"], "manifest_hash": stored["record"]["sha256"]})])
         return 200, status(db, resource, principal), None
 
-    async def mutate(request, kind, resource=""):
-        supplied = headers(request)
+    async def mutate(request, kind, resource="", *, resolver=None, body_override=None, personal_ai=None):
+        supplied = headers(request) if resolver is None else ''
         if resource and not re.fullmatch(r"[0-9a-f]{32}", resource):
             raise NotFoundError()
         try:
-            body = await _body(request)
+            body = await _body(request) if body_override is None else body_override
         except (ValidationError, HTTPException) as exc:
             code = exc.status_code if isinstance(exc, HTTPException) else 422
             def invalid_body(_db, _p):
@@ -311,8 +313,18 @@ def install_arena(app, repository, operator_token, *, clock=None):
         operator = kind in ("challenges", "agents", "tokens", "revoke", "close", "run", "stop", "score", "reveal", "integrity")
         if kind == "messages":
             operator = isinstance(body.get("message"), dict) and body["message"].get("type") in OPERATOR_TYPES
+        def apply_action(db, principal):
+            result = action(db, principal, kind, resource, body)
+            # Trusted server-only configuration, committed with trial and receipt.
+            if kind == 'sessions' and personal_ai is not None and result[0] == 201:
+                sid = result[1]['session_id']
+                profile = json.loads(db.execute('SELECT profile_json FROM session_profiles WHERE session_id=?', (sid,)).fetchone()[0])
+                profile['personal_ai'] = personal_ai
+                db.execute('UPDATE session_profiles SET profile_json=? WHERE session_id=?', (json.dumps(profile), sid))
+            return result
+
         code, value, work, receipt = store.perform(supplied, request.headers.get("idempotency-key"), request.url.path, body,
-            lambda db, p: action(db, p, kind, resource, body), operator=operator)
+            apply_action, operator=operator, resolver=resolver)
         if work:
             operation, sid, version, stored, started = work
             try:
@@ -393,4 +405,7 @@ def install_arena(app, repository, operator_token, *, clock=None):
                 raise NotFoundError()
             return json.loads(row[0])["splits"][split]
 
+    if getattr(app.state, 'connections', None) is not None:
+        from .public_arena import install_public_arena
+        install_public_arena(app, repository, store, mutate, status, leaderboard_data)
     return store

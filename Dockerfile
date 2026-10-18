@@ -12,9 +12,10 @@ RUN pnpm lint && pnpm build && pnpm check:bundle
 FROM python:3.12-slim-bookworm AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 MPLBACKEND=Agg MPLCONFIGDIR=/tmp/zone-mpl ZONE_ENV=local
 WORKDIR /app
-COPY pyproject.toml README.md LICENSE constraints-ci.txt ./
+COPY pyproject.toml README.md LICENSE THIRD_PARTY_NOTICES.md constraints-ci.txt ./
 COPY hidden_lab ./hidden_lab
-RUN pip install --no-cache-dir -c constraints-ci.txt '.[backend]' \
+ARG ZONE_EXTRAS=workspace
+RUN pip install --no-cache-dir -c constraints-ci.txt ".[${ZONE_EXTRAS}]" \
     && groupadd --gid 10001 zone \
     && useradd --uid 10001 --gid zone --no-create-home zone \
     && mkdir /data && chown zone:zone /data
@@ -24,4 +25,4 @@ EXPOSE 8765
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
     CMD python -c "from urllib.request import urlopen; urlopen('http://127.0.0.1:8765/health/ready', timeout=3).close()"
 ENTRYPOINT ["python", "-m", "hidden_lab"]
-CMD ["serve", "--db", "/data/zone.sqlite3", "--host", "0.0.0.0", "--container-local", "--web-dir", "/app/web"]
+CMD ["workspace", "--data", "/data", "--host", "0.0.0.0", "--port", "8765", "--container-local", "--web-dir", "/app/web"]

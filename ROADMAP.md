@@ -1,36 +1,26 @@
-# Roadmap Zone
+# Zone roadmap
 
-Visione: **Zone is a public laboratory where humans and artificial agents try to discover the laws of unfamiliar universes through experiments.** Si procede per percorsi verticali locali e verificabili; nessuna chiamata a pagamento, download di modelli, pubblicazione o deployment senza autorizzazione successiva.
+## Version 1.0 — complete open-source application
 
-Stati: **completata**, **in corso**, **da fare**, oppure **implementata con verifica pendente** quando manca l'ambiente. Ogni fase richiede test pertinenti, suite completa verde, documentazione e controllo del confine pubblico/privato. Le metriche restano separate.
+On 18 October 2026 the project changed direction from a centrally hosted beta to a reusable public GitHub release. The delivery includes the application, research tools, documentation, tests and installable artifacts. A managed public SaaS is not a release prerequisite.
 
-| Fase | Criteri verificabili di completamento | Stato |
-| --- | --- | --- |
-| 0. Audit | Repository e test ispezionati; Git locale e `.gitignore`; architettura, debito e confini documentati. | Completata |
-| 1. Benchmark | Quattro condizioni; probe e metriche per categoria; due baseline non LLM; appaiamento rigoroso; bootstrap con soglia e avvisi; compatibilità v0.1/v0.2; prova offline. | Completata |
-| 2. World Forge | AST sicuro serializzabile, validato e deterministico; livelli 1–5 generati e filtrati; interfacce per 6–9; euristica di difficoltà esplicitata; nessun `eval`. | Completata |
-| 3. Identificazione | Submission AST comune a umani/agenti; previsione numerica principale; equivalenza funzionale, complessità, dipendenze e calibrazione separate. | Completata |
-| 4. Backend | FastAPI sottile, SQLite sostituibile, macchina a stati, replay, reveal controllato, input e rate limit; test senza rete. | Completata |
-| 5. Laboratorio web | React/TypeScript/Vite accessibile; percorso completo dalla challenge al risultato e replay; bundle senza segreti. | Completata |
-| 6. Modalità pubbliche | Scientist, Human vs AI con condizioni equivalenti, Watch an Agent, World of the Day locale e Build a Universe validato. | Completata |
-| 7. Zone Arena | Protocollo BYOA versionato, token revocabili, quote, idempotenza, audit e leaderboard multidimensionale. | Completata |
-| 8. Integrità | Suite train/development pubbliche e test privata; manifest/reveal; controlli di contaminazione, duplicati e abuso; threat model. | Completata |
-| 9. Qualità open source | MIT scelta dall'autore, CONTRIBUTING, condotta, template, changelog, demo, container e CI offline. Verifica remota completata nella fase 11. | Completata; codice remoto privato |
-| 10. Preparazione pubblicazione | Health, migrazioni, log, backup/restore, ambienti, checklist/guide e demo locale completa. Deployment non eseguito. | Completata nel perimetro locale |
-| 11. Distribuzione verificata | CI Linux/Windows Python 3.11/3.12, frontend, Docker Linux e wheel pulita; server reale, riavvio e restore con confronto completo dei dati e replay. | Completata, 0.11.0 |
-| 12. Pilot LLM | Una prima indagine reale con operatore, modello e budget espliciti; protocollo, costi e limiti misurati. Richiede autorizzazione alle chiamate. | Da fare |
-| 13. Identità multiutente | Account, ruoli, isolamento, quote e percorso amministrativo adatti a utenti esterni. | Da fare |
-| 14. Beta privata ospitata | Host scelto, TLS, backup/restore sul bersaglio, monitoraggio e prove di carico/recupero con utenti invitati. | Da fare |
-| 15. Apertura pubblica | Decisione su pubblicazione codice/release, canale sicurezza, policy e apertura del servizio dopo la beta. | Da fare |
+| Capability | Release scope |
+| --- | --- |
+| Simulator and protocol | Bounded RK4 worlds, explicit human decisions, immutable predictions and public/private history separation |
+| Benchmark | v0.3 with four conditions, sequential passive control, category metrics and strict pairing |
+| World Forge | Versioned seeded generation, safe AST, levels 1–5 and validation pipeline |
+| Scientific identification | Numeric probes, optional law AST and uncertainty; separate empirical metrics |
+| Web application | Six modes, onboarding, glossary, public-measurement replay, LaTeX/MathML and reduced motion |
+| Personal agents | API providers, official local ChatGPT OAuth and outbound local-model connectors |
+| Accounts | Password/recovery, invited roles, ownership, CSRF, quotas, revocation and administration |
+| Arena and Integrity | Idempotent trials, challenge lifecycle, embargo, contamination flags and multidimensional results |
+| Operations | SQLite migration checks, health, backup/restore, release wheel, source archive and Docker |
+| Public project | MIT, third-party notices, contribution and security channels, CI, release notes and checksum verification |
 
-## Criteri immediati
+The earlier phases 0–13 produced the existing research and application capabilities. Hosted-beta experiments are engineering history, not a requirement to run this release or a claim of hosted-service availability. See [scope and limitations](docs/limitations.md) and [release verification](docs/release-checklist.md).
 
-La fase 1 include due baseline che producono trial senza accesso ai probe prima del freeze, intervalli bootstrap deterministici e assenti sotto otto mondi appaiati, lettura delle suite v0.1/v0.2 e CLI offline completa. La fase 2 ha un generatore World Forge v1 con seed, AST per livelli 1–5, simulazione RK4, controlli numerici e scientifici euristici, manifest ridotto, CLI offline e interfacce esplicite per livelli 6–9. I mondi AST non entrano nelle suite benchmark v0.3: quelle mantengono schema e validazione originari. La fase 3 usa un sottoinsieme di submission scientifica comune per operatori e agenti benchmark v0.3; il percorso locale World Forge rilascia i probe dopo la conclusione e confronta l'AST su una griglia privata. La fase 4 aggiunge una API FastAPI locale con eventi SQLite, token di ruolo, CAS su versione, replay, freeze e reveal esplicito. La fase 5 fornisce il client web locale per l'intero ciclo umano dal lancio al risultato, con replay e bundle pubblico. Le metriche sono separate e descritte in `docs/identification.md`; il backend in `docs/backend.md` e la UI in `docs/frontend.md`. Le modalità della fase 6 sono in `docs/public-modes.md`; il consolidamento e le prove browser in `docs/verification.md`. La fase 7 espone BYOA v1 con ownership, token con scadenza e revoca, quote SQLite persistenti, receipt idempotenti, audit e classifiche distinte per challenge; guide in `docs/arena.md` e stato complessivo in `docs/status.md`.
+## Optional future research
 
-## Decisioni e limiti
+Future work may add carefully validated world levels, new scientific studies, stronger external-model attestation, additional languages or deployment architectures. These require their own designs and evidence. There are no unimplemented modes advertised as usable in version 1.0. Levels beyond 5 remain explicitly unsupported, rather than silently falling back.
 
-Le decisioni tecniche sono in `docs/decisions/`. Il repository Git ha un remoto privato `zalaso/Zone`, creato per la fase 11. Backend e frontend sono vincolati a loopback; non esistono ancora deployment o servizio pubblico. La fase 6 aggiunge le modalità locali e un agente gestito sul server, offline per default; nessun test con LLM reale prova capacità di scoperta. La fase 7 è un’Arena locale con operatore: non certifica il modello del client esterno, i suoi costi o l’integrità competitiva. La fase 11 completa le verifiche Docker/CI delle fasi 9–10, dopo conferma dell'autore di budget Actions zero e blocco degli extra. Pubblicazione pubblica, deployment e spese aggiuntive richiedono autorizzazione successiva.
-
-La fase 8 è documentata in [Integrity](docs/integrity.md) e nel [threat model](docs/threat-model.md): catalogo locale fidato, split impegnati, ritiro dopo reveal, score in embargo, flag append-only, duplicati euristici e limiti per account. Nessuna attestazione del modello o dei costi BYOA; nessun trial LLM reale.
-
-Le fasi 9–10 hanno preparato la versione 0.10.0 con MIT, schema SQLite 2 e operazioni conservative. La fase 11 porta a 0.11.0: 207 test Python locali e in quattro configurazioni remote, 15 frontend, 2 controlli Node, sei job CI verdi e confronto dello stato prima/dopo riavvio e restore. Docker è verificato sul runner Linux; non è installato sul PC. Il precedente smoke Edge resta la prova browser della fase 10. Guide in [distribuzione](docs/distribution.md), [operazioni](docs/operations.md), [checklist](docs/release-checklist.md) e [revisione operativa](docs/production-readiness.md).
+Bug fixes and security maintenance apply to the current release. Proposed extensions belong in issues; no implementation date, hosted SLA or research result is promised.

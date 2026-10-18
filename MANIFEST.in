@@ -1,16 +1,21 @@
-include LICENSE README.md pyproject.toml
+include LICENSE THIRD_PARTY_NOTICES.md README.md README.it.md pyproject.toml
 include CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md CHANGELOG.md ROADMAP.md
-include constraints-ci.txt Dockerfile compose.yaml .dockerignore .gitignore
+include PRODUCT.md DESIGN.md
+include CITATION.cff
+include constraints-ci.txt Dockerfile compose.yaml compose.api.yaml .dockerignore .gitignore
 recursive-include hidden_lab *.py
+recursive-include hidden_lab/web *.html *.js *.css *.svg *.png *.ico *.woff *.woff2
 recursive-include tests *.py
 recursive-include tools *.py
 recursive-include docs *.md
+include docs/assets/zone.png
+recursive-include deploy *.py *.yaml *.beta *.service *.timer *.caddy
 recursive-include .github *.md *.yml
 include examples/operator-world.json examples/request.json examples/manual-session.txt examples/simulated-operator-input.txt
 include frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml frontend/index.html frontend/tsconfig.json frontend/vite.config.ts
 recursive-include frontend/src *.ts *.tsx *.css
 recursive-include frontend/scripts *.mjs
-global-exclude *.pyc *.db *.sqlite *.sqlite3 *.private.json .env .env.*
+global-exclude *.pyc *.db *.sqlite *.sqlite3 *.private.json .env .env.* credentials.dpapi credentials.json
 prune benchmark_data
 prune benchmark_private
 prune benchmark_runs

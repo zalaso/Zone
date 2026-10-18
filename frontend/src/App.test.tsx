@@ -55,6 +55,33 @@ async function requestExperiment() {
 }
 
 describe('percorso locale del laboratorio', () => {
+  it('una nuova sessione non eredita la decisione Modifica o le bozze dell’indagine precedente', async () => {
+    await createSession(); await requestExperiment()
+    const panel = screen.getByRole('heading', { name: 'Decidi sul lancio' }).closest('section')!
+    fireEvent.click(within(panel).getByLabelText('Modifica'))
+    fireEvent.change(within(panel).getByLabelText('Motivazione'), { target: { value: 'Decisione della prima indagine' } })
+    fireEvent.click(within(panel).getByRole('button', { name: 'Registra decisione' }))
+    await waitFor(() => expect(fake.state).toBe('awaiting_mode'))
+    fireEvent.click(screen.getByText('Nuova sessione e impostazioni del percorso', { exact: true }))
+    fake.state = 'discovering'; fake.pendingId = ''; fake.events = []
+    fireEvent.click(screen.getByRole('button', { name: /Crea sessione/ }))
+    await screen.findByRole('heading', { name: 'Proponi un esperimento' })
+    expect(screen.getByLabelText('Scopo del lancio')).toHaveValue('')
+    await requestExperiment()
+    const nextPanel = screen.getByRole('heading', { name: 'Decidi sul lancio' }).closest('section')!
+    expect(within(nextPanel).getByLabelText('Approva')).toBeChecked()
+    expect(within(nextPanel).getByLabelText('Motivazione')).toHaveValue('')
+    expect(within(nextPanel).queryByLabelText('Durata (s)')).not.toBeInTheDocument()
+  })
+  it('separa il cambio percorso dall’indagine attiva e conserva il registro', async () => {
+    await createSession()
+    fireEvent(window, new CustomEvent('zone-select-mode', { detail: 'build_universe' }))
+    await screen.findByRole('heading', { name: 'Costruisci un universo' })
+    expect(screen.queryByRole('heading', { name: 'Proponi un esperimento' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('Nuova sessione e impostazioni del percorso', { exact: true }))
+    await screen.findByRole('heading', { name: 'Proponi un esperimento' })
+    expect(screen.getByText(sessionId)).toBeInTheDocument()
+  })
   it('richiede approvazione e lancio espliciti, poi mostra misure, challenge e risultato', async () => {
     await createSession(); await requestExperiment()
     expect(fake.runCalls).toBe(0)
@@ -69,9 +96,11 @@ describe('percorso locale del laboratorio', () => {
     fireEvent.click(screen.getByRole('button', { name: /Esegui esperimento/ }))
     await waitFor(() => expect(fake.runCalls).toBe(1))
     await screen.findByText('2 misure registrate')
+    fireEvent.click(screen.getByText('Registra un’ipotesi o una domanda', { exact: true }))
     fireEvent.change(screen.getByLabelText('Ipotesi'), { target: { value: 'Accelerazione costante' } })
     fireEvent.click(screen.getByRole('button', { name: 'Registra ipotesi' }))
     await waitFor(() => expect(fake.lastMessage?.type).toBe('hypothesis'))
+    fireEvent.click(screen.getByText('Concludi e passa alla prova finale', { exact: true }))
     fireEvent.change(screen.getByLabelText('Conclusione'), { target: { value: 'La legge sembra costante' } })
     fireEvent.change(screen.getByLabelText(/Limiti/), { target: { value: 'Solo un lancio' } })
     fireEvent.click(screen.getByRole('button', { name: 'Registra conclusione' }))

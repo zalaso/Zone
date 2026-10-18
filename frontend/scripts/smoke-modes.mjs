@@ -24,6 +24,8 @@ async function click(name) {
   return data
 }
 async function create(mode) {
+  const setup = page.locator('.session-setup')
+  if (await setup.locator('.setup-toggle').getAttribute('aria-expanded') === 'false') await setup.locator('.setup-toggle').click()
   await page.getByLabel('Percorso', { exact: true }).selectOption(mode)
   return click('Crea sessione')
 }
@@ -58,6 +60,7 @@ try {
 
   const match = await create('human_vs_ai')
   assert.equal(await page.getByRole('button', { name: 'Indagine agente', exact: true }).isEnabled(), false)
+  await page.getByText('Concludi e passa alla prova finale', { exact: true }).click()
   await page.getByLabel('Conclusione', { exact: true }).fill('Informazioni insufficienti: non ho effettuato misure.')
   await page.getByLabel('Limiti (almeno uno, uno per riga)').fill('Zero misure. Questa è solo una prova del flusso.')
   await click('Registra conclusione')

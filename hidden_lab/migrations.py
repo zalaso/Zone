@@ -6,7 +6,7 @@ from pathlib import Path
 import sqlite3
 
 from .protocol import ValidationError
-from .schema_sql import CORE_SQL, ARENA_SQL, INTEGRITY_SQL
+from .schema_sql import CORE_SQL, ARENA_SQL, INTEGRITY_SQL, IDENTITY_SQL, PUBLIC_WORKSPACE_SQL
 
 INDEX_SQL = """
 CREATE INDEX IF NOT EXISTS sessions_by_world ON sessions(world_id);
@@ -17,7 +17,9 @@ CREATE INDEX IF NOT EXISTS audit_by_principal ON arena_audit(principal,seq);
 CREATE INDEX IF NOT EXISTS cases_by_pack ON integrity_cases(pack_id,split);
 """
 MIGRATIONS = ((1, "adopt_local_schema", CORE_SQL + ARENA_SQL + INTEGRITY_SQL),
-              (2, "operational_indexes", INDEX_SQL))
+              (2, "operational_indexes", INDEX_SQL),
+              (3, "invited_accounts", IDENTITY_SQL),
+              (4, "personal_public_workspace", PUBLIC_WORKSPACE_SQL))
 SCHEMA_VERSION = MIGRATIONS[-1][0]
 LEDGER_SQL = """CREATE TABLE IF NOT EXISTS schema_migrations (
     version INTEGER PRIMARY KEY, name TEXT NOT NULL, checksum TEXT NOT NULL,
@@ -42,9 +44,9 @@ def _table_signature(db, name):
             sorted(unique, key=repr))
 
 
-def _expected_tables():
+def _expected_tables(version=None):
     with closing(sqlite3.connect(":memory:")) as db:
-        for statement in _statements(MIGRATIONS[0][2]) + [LEDGER_SQL]:
+        for statement in [s for v, _, sql in MIGRATIONS if version is None or v <= version for s in _statements(sql)] + [LEDGER_SQL]:
             db.execute(statement)
         names = [row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name!='sqlite_sequence'")]
         return {name: _table_signature(db, name) for name in names}
@@ -53,10 +55,12 @@ def _expected_tables():
 EXPECTED_TABLES = _expected_tables()
 
 
-def _layout(db, *, complete):
+def _layout(db, *, complete, version=0):
     tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name!='sqlite_sequence'")}
     if tables - EXPECTED_TABLES.keys() or complete and tables != EXPECTED_TABLES.keys():
         raise ValidationError("Schema SQLite non compatibile con Zone.")
+    if version and not complete and tables != _expected_tables(version).keys():
+        raise ValidationError('Schema SQLite incompleto per la versione registrata.')
     for name in tables:
         if _table_signature(db, name) != EXPECTED_TABLES[name]:
             raise ValidationError("Colonne o vincoli SQLite incompatibili: migrazione rifiutata.")
@@ -86,6 +90,8 @@ def migrate_connection(db):
     try:
         _layout(db, complete=False)
         status = schema_status(db)
+        if status['schema_version']:
+            _layout(db, complete=False, version=status['schema_version'])
         db.execute(LEDGER_SQL)
         for version, name, sql in MIGRATIONS:
             if version > status["schema_version"]:
@@ -116,8 +122,10 @@ def connect_existing(path, *, readonly=True):
 
 def check_database(path):
     with closing(connect_existing(path)) as db:
-        _layout(db, complete=db.execute("PRAGMA user_version").fetchone()[0] != 0)
+        _layout(db, complete=db.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION)
         status = schema_status(db)
+        if status['schema_version']:
+            _layout(db, complete=False, version=status['schema_version'])
         if db.execute("PRAGMA integrity_check").fetchall() != [("ok",)] or db.execute("PRAGMA foreign_key_check").fetchone():
             raise ValidationError("Verifica SQLite fallita.")
         return status

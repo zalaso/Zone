@@ -27,6 +27,24 @@ class ArenaStore:
             migrate_connection(db)
 
     def authenticate(self, db, supplied, operator=False):
+        from .identity_store import CURRENT_ACCOUNT, account_view
+        identity = CURRENT_ACCOUNT.get()
+        if identity is not None:
+            current = account_view(db, identity['account_id'])
+            if not current['enabled']:
+                raise HTTPException(401, 'Account disabilitato.')
+            staff = current['role'] in ('admin', 'operator')
+            if staff and (operator or not isinstance(supplied, str) or not supplied.startswith('za_')):
+                return 'operator'
+            if operator:
+                raise HTTPException(403, 'Azione riservata allo staff Arena.')
+            if isinstance(supplied, str) and len(supplied) <= 256:
+                row = db.execute('SELECT t.agent_id FROM arena_tokens t JOIN arena_owners o ON o.agent_id=t.agent_id '
+                    'WHERE t.hash=? AND t.revoked=0 AND t.expires>? AND o.account_id=?',
+                    (sha256(supplied.encode()).hexdigest(), self.clock(), current['account_id'])).fetchone()
+                if row:
+                    return row[0]
+            raise HTTPException(401, 'Credenziale Arena non associata a questo account.')
         if not isinstance(supplied, str) or len(supplied) > 256:
             raise HTTPException(401, "Credenziale Arena non valida.")
         if hmac.compare_digest(supplied.encode(), self.operator_token.encode()):
@@ -89,18 +107,18 @@ class ArenaStore:
             raise HTTPException(429, "Limite persistente Arena per account raggiunto.")
         db.execute(f"UPDATE arena_rates SET {bucket}={bucket}+1 WHERE agent_id=?", (principal,))
 
-    def perform(self, supplied, key, path, body, callback, *, operator=False):
+    def perform(self, supplied, key, path, body, callback, *, operator=False, resolver=None):
         if not isinstance(key, str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{8,128}", key):
             raise HTTPException(400, "Idempotency-Key obbligatorio e non valido.")
         key_hash, body_hash = sha256(key.encode()).hexdigest(), fingerprint(body)
         transient = None
         with self.repo._connect() as db:
             db.execute("BEGIN IMMEDIATE")
-            principal = self.authenticate(db, supplied, operator)
+            principal = resolver(db) if resolver else self.authenticate(db, supplied, operator)
             self.admit(db, principal, "writes")
             db.commit()
             db.execute("BEGIN IMMEDIATE")
-            principal = self.authenticate(db, supplied, operator)
+            principal = resolver(db) if resolver else self.authenticate(db, supplied, operator)
             row = db.execute("SELECT path,body_hash,status,response_json FROM arena_receipts "
                              "WHERE principal=? AND key_hash=?", (principal, key_hash)).fetchone()
             if row:

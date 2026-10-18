@@ -24,6 +24,16 @@ class Session:
         self.directory.mkdir(parents=True, exist_ok=False)
         (self.directory / "public").mkdir()
         (self.directory / "private").mkdir()
+        self._initialize_state(config)
+        write_json(self.directory / "private" / "reproducibility.json", {
+            "config": config.to_dict(), "package_version": __version__,
+            "python_version": platform.python_version(),
+            "integrator": "RK4; ceil(observation_interval/integration_step) passi per intervallo",
+            "noise": "random.Random(seed + experiment_index), gauss indipendente per x e y; index da 1",
+        })
+        self._emit("apparatus", apparatus(config.experiment_budget))
+
+    def _initialize_state(self, config):
         self.config = config
         self.events = []
         self.requests = {}
@@ -36,13 +46,6 @@ class Session:
         self.pending_question = None
         self.conclusion = None
         self.closed = False
-        write_json(self.directory / "private" / "reproducibility.json", {
-            "config": config.to_dict(), "package_version": __version__,
-            "python_version": platform.python_version(),
-            "integrator": "RK4; ceil(observation_interval/integration_step) passi per intervallo",
-            "noise": "random.Random(seed + experiment_index), gauss indipendente per x e y; index da 1",
-        })
-        self._emit("apparatus", apparatus(config.experiment_budget))
 
     def _append(self, path, value):
         with path.open("a", encoding="utf-8") as stream:
@@ -169,7 +172,7 @@ class Session:
             self.predictions[request_id] = message
         return event
 
-    def run(self, request_id):
+    def _begin_execution(self, request_id):
         if self.closed or self.pending_question is not None:
             raise ValidationError("Indagine chiusa oppure risposta dell'operatore ancora in attesa.")
         request = self.requests.get(request_id)
@@ -185,6 +188,10 @@ class Session:
         self.executed_count = experiment_index
         request["status"] = "executed"
         self.pending = None
+        return request, experiment_index
+
+    def run(self, request_id):
+        request, experiment_index = self._begin_execution(request_id)
         try:
             points = simulate(self.config, request["experiment"], experiment_index)
             status, error = "ok", None

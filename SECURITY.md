@@ -1,9 +1,24 @@
-# Sicurezza e segnalazioni
+# Security
 
-La versione 0.10 è pensata per un operatore e un host fidati, su loopback. Il repository non offre ancora un servizio pubblico, identità pubbliche o attestazione dei client BYOA. Leggere [threat model](docs/threat-model.md), [operazioni](docs/operations.md) e [checklist](docs/release-checklist.md) prima di distribuire il software.
+Report vulnerabilities privately through [GitHub Private Vulnerability Reporting](https://github.com/zalaso/Zone/security/advisories/new). Do not put credentials, private worlds, databases or exploit details in public issues. If that channel is unavailable, contact [the maintainer](https://github.com/zalaso) to arrange a private channel before sharing sensitive material.
 
-Non pubblicare vulnerabilità con credenziali, dati privati o istruzioni di sfruttamento su istanze altrui. Il repository è attualmente locale: prima della pubblicazione non esiste una inbox GitHub dedicata. Contattare il maintainer [zalaso](https://github.com/zalaso) per concordare un canale privato; all'apertura del repository abilitare Private Vulnerability Reporting e aggiornare questa pagina con il canale verificato. Non supporre che quel canale sia già attivo.
+## Supported scope
 
-Per una segnalazione usare una copia locale e dati sintetici; indicare versione, superficie, prerequisiti, impatto e riproduzione minima senza segreti. Non sono autorizzati test contro servizi esterni. Si verifica la versione corrente; non c'è ancora un ciclo formalizzato di supporto per versioni precedenti. Nessuna promessa di tempi di risposta o bug bounty.
+Security fixes target the current 1.x release. Earlier development releases should be upgraded. There is no guaranteed response time or paid support agreement. This repository is software you run yourself; it does not provide a centrally operated public laboratory.
 
-Token, database SQLite, backup, suite private e nonce sono dati privati dell'operatore. I backup non sono cifrati da Zone e non devono essere inseriti in Git, immagini, artifact CI o bundle browser. In caso di incidente arrestare il server, conservare una copia controllata, ruotare le credenziali e verificare i casi già rivelati prima di riaprire una challenge.
+Reproduce reports on your own local installation with synthetic data. Include the release, affected route or component, prerequisites, impact and minimal reproduction. Testing systems you do not own is not authorized.
+
+## Trust boundaries
+
+- The host operator controls the simulator, database, process environment and backups. This is not a sandbox against a malicious host administrator.
+- Models receive explicitly constructed public messages, never the private world, repository, README, credentials, filesystem or terminal tools.
+- A model step cannot authorize a launch. Approval, exploration/verification and execution remain separate human actions; silence is never approval.
+- Account cookies are HttpOnly and SameSite Strict, with CSRF and exact-origin checks. HTTPS is required for external origins. Do not disable these checks behind a proxy.
+- Provider credentials are either kept on the user's computer by an outbound connector or encrypted with a separately managed server key. No inference or provider fallback runs at startup.
+- SQLite, logs, `admin-key.txt`, `connection.key`, OAuth stores, private suites, commitments and backups must stay outside Git, static directories, release assets and CI artifacts. Local data directories must only be readable by trusted users.
+
+## Self-hosting
+
+The default listener and Docker publication are loopback only. An Internet deployment requires an exact HTTPS origin, reverse proxy, independent backups, resource limits, retention policy and an operator. Registration outside loopback is opt-in. See [self-hosting](docs/self-hosting.md), [data handling](docs/privacy.md) and the [threat model](docs/threat-model.md).
+
+Backups are not encrypted by Zone. Protect them independently and retain the connection encryption key separately; without the original key, stored provider credentials cannot be decrypted. On compromise stop the instance, preserve controlled evidence, revoke sessions and provider access, rotate credentials and retire exposed test worlds before reopening.

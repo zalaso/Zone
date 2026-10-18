@@ -16,7 +16,11 @@ class DeploymentTests(unittest.TestCase):
         self.assertEqual(service['read_only'], 'true')
         self.assertEqual(service['cap_drop'], ['ALL'])
         self.assertIn('no-new-privileges:true', service['security_opt'])
-        self.assertIn('${ZONE_OPERATOR_TOKEN:?', service['environment']['ZONE_OPERATOR_TOKEN'])
+        self.assertIn('workspace', service['command'])
+        self.assertNotIn('--enable-personal-api', service['command'])
+        self.assertEqual(service['environment'], {'ZONE_CONNECTION_KEY': '${ZONE_CONNECTION_KEY:-}'})
+        overlay = yaml.load((root/'compose.api.yaml').read_text(), Loader=yaml.BaseLoader)
+        self.assertIn('--enable-personal-api', overlay['services']['zone']['command'])
         self.assertFalse(any('API_KEY' in name for name in service['environment']))
         self.assertEqual(service['volumes'], ['zone-data:/data'])
 

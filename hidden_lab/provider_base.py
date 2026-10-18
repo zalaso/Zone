@@ -29,10 +29,16 @@ class AgentSettings:
             value = getattr(self, name)
             if type(value) is not int or not low <= value <= high:
                 raise ValidationError(f"Impostazione {name} fuori dai limiti [{low}, {high}].")
-        number(self.timeout, 1, 120)
+        # CPU inference may need longer; remote entry points enforce their 120 s cap.
+        number(self.timeout, 1, 600)
 
     def to_dict(self):
         return asdict(self)
+
+
+def validate_remote_settings(settings):
+    if settings.timeout > 120:
+        raise ValidationError("Timeout remoto massimo 120 secondi; fino a 600 solo con Ollama locale.")
 
 
 @dataclass(frozen=True)
@@ -45,10 +51,18 @@ class ModelReply:
 class ProviderError(Exception):
     """Solo codici locali: mai corpi HTTP, header o eccezioni SDK."""
 
-    def __init__(self, code):
+    def __init__(self, code, *, http_status=None, provider_code=None):
         allowed = {"timeout", "connection", "authentication", "rate_limit", "request_rejected",
                    "server_error", "provider_error", "service_unavailable", "model_unavailable"}
         self.code = code if code in allowed else "provider_error"
+        self.http_status = http_status if type(http_status) is int and 400 <= http_status <= 599 else None
+        allowed_provider_codes = {
+            'subscription_sharing_usage_limit_exceeded', 'subscription_sharing_usage_unavailable',
+            'subscription_sharing_user_unavailable', 'subscription_sharing_user_not_eligible',
+            'subscription_sharing_invalid_user', 'subscription_sharing_unsupported_capability',
+            'subscription_sharing_route_not_supported', 'chatpass_v2_scope_not_authorized',
+            'chatpass_v2_invalid_authorization_context'}
+        self.provider_code = provider_code if provider_code in allowed_provider_codes else None
         super().__init__(self.code)
 
 

@@ -49,8 +49,11 @@ class Investigation:
             except ProviderError as exc:
                 self.session.record_private("model_calls.jsonl", {**audit, "outcome": "provider_error",
                                             "error_code": exc.code, "usage": None,
+                                            "http_status": exc.http_status,
+                                            "provider_error_code": exc.provider_code,
                                             "elapsed_seconds": round(time.monotonic() - start, 3)})
-                self.terminal.show(f"Errore del provider ({exc.code}). Nessun tentativo automatico; i lanci precedenti restano registrati.")
+                detail = f", HTTP {exc.http_status}" if exc.http_status is not None else ""
+                self.terminal.show(f"Errore del provider ({exc.code}{detail}). Nessun tentativo automatico; i lanci precedenti restano registrati.")
                 self.session.stop("provider_error")
                 return None
             try:
@@ -69,6 +72,13 @@ class Investigation:
                 self.session.record_private("model_calls.jsonl", {**audit, **reply.metadata, "outcome": "invalid_response",
                                             "elapsed_seconds": round(time.monotonic() - start, 3)})
                 self.terminal.show(f"Risposta non valida: {exc}")
+                if self.client.provider == "chatgpt":
+                    diagnostics = reply.metadata.get("provider_details") or {}
+                    labels = {"empty": "testo ricevuto vuoto", "markdown_fence": "testo racchiuso in blocchi Markdown",
+                              "invalid": "testo ricevuto non conforme alla sintassi JSON", "valid": "sintassi JSON valida, contratto non rispettato"}
+                    label = labels.get(diagnostics.get("json_syntax"))
+                    if label:
+                        self.terminal.show(f"Diagnostica: {label}. Dettagli strutturali nel registro model_calls.jsonl.")
                 if attempt < self.settings.max_corrections:
                     self.terminal.show("Richiedo una correzione entro i limiti rimasti.")
                 continue
@@ -127,6 +137,7 @@ class Investigation:
 
     def run(self):
         labels = {"openai": "OPENAI REALE: le chiamate API possono avere un costo",
+                  "chatgpt": "CHATGPT REALE: uso del piano autorizzato; nessun fallback API a pagamento",
                   "anthropic": "ANTHROPIC REALE: le chiamate API possono avere un costo",
                   "gemini": "GEMINI REALE: le chiamate API possono avere un costo",
                   "ollama": "OLLAMA LOCALE: il modello viene eseguito sul tuo computer; nessun download automatico",
@@ -134,6 +145,8 @@ class Investigation:
         label = labels[self.client.provider]
         self.terminal.show(label)
         self.terminal.show(f"Provider: {self.client.provider}; modello: {self.settings.model}; massimo {self.settings.max_calls} chiamate e {self.settings.max_turns} turni validi.")
+        if self.client.provider == "chatgpt":
+            self.terminal.show("La preview ChatGPT non accetta max_output_tokens: limite locale di risposta 64 KiB, quota del piano separata. Controlla Usage e disabilita eventuali crediti extra nelle impostazioni ChatGPT.")
         self.terminal.show("Suggerimenti teorici dell'operatore entrano nella storia pubblica e possono influenzare i risultati.")
         try:
             self.terminal.choose("Avvia l'indagine? [avvia/esci]: ", ("avvia",))

@@ -4,7 +4,7 @@ import os
 
 from .agent_contract import ModelRequest
 from .protocol import ValidationError
-from .provider_base import ModelReply, ProviderError, count, metadata
+from .provider_base import ModelReply, ProviderError, count, metadata, validate_remote_settings
 
 
 def anthropic_payload(request: ModelRequest):
@@ -28,10 +28,11 @@ def anthropic_metadata(response):
 class AnthropicClient:
     provider = "anthropic"
 
-    def __init__(self, settings, *, transport=None, sdk=None):
+    def __init__(self, settings, *, transport=None, sdk=None, api_key=None):
+        validate_remote_settings(settings)
         from anthropic import Anthropic, __version__
         import httpx2
-        key = os.environ.get("ANTHROPIC_API_KEY")
+        key = api_key if api_key is not None else os.environ.get("ANTHROPIC_API_KEY")
         if not key or not key.strip():
             raise ValidationError("Imposta ANTHROPIC_API_KEY nell'ambiente.")
         self.sdk_version = __version__

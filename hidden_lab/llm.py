@@ -4,7 +4,7 @@ import os
 
 from .agent_contract import ModelRequest, openai_payload
 from .protocol import ValidationError
-from .provider_base import AgentSettings, ModelReply, ProviderError, count, metadata
+from .provider_base import AgentSettings, ModelReply, ProviderError, count, metadata, validate_remote_settings
 
 
 def response_metadata(response):
@@ -25,11 +25,12 @@ def response_metadata(response):
 class OpenAIClient:
     provider = "openai"
 
-    def __init__(self, settings, *, transport=None):
+    def __init__(self, settings, *, transport=None, api_key=None):
+        validate_remote_settings(settings)
         # Creare un client non effettua richieste. La chiave rimane nel solo SDK.
         from openai import OpenAI, __version__
         import httpx
-        key = os.environ.get("OPENAI_API_KEY")
+        key = api_key if api_key is not None else os.environ.get("OPENAI_API_KEY")
         if not key or not key.strip():
             raise ValidationError("Imposta OPENAI_API_KEY nell'ambiente prima di avviare il client reale.")
         self.sdk_version = __version__

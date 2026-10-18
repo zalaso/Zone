@@ -51,14 +51,14 @@ class OperationsTests(unittest.TestCase):
     def test_legacy_migration_preserves_every_record_and_restarts_idempotently(self):
         self.legacy()
         old = self.rows(self.db)
-        self.assertEqual(check_database(self.db)["pending"], [1, 2])
+        self.assertEqual(check_database(self.db)["pending"], [v for v, _, _ in MIGRATIONS])
         SQLiteRepository(self.db)
         self.assertEqual(self.rows(self.db), old)
         SQLiteRepository(self.db)
         self.assertEqual(self.rows(self.db), old)
         self.assertEqual(check_database(self.db)["schema_version"], SCHEMA_VERSION)
         with closing(connect_existing(self.db)) as db:
-            self.assertEqual(db.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0], 2)
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0], len(MIGRATIONS))
             self.assertIsNotNone(db.execute("SELECT 1 FROM sqlite_master WHERE name='audit_by_principal'").fetchone())
 
     def test_core_only_legacy_and_concurrent_initialization(self):

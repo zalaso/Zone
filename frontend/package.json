@@ -1,7 +1,7 @@
 {
   "name": "zone-laboratory",
   "private": true,
-  "version": "0.11.0",
+  "version": "1.0.0",
   "packageManager": "pnpm@10.28.0",
   "type": "module",
   "scripts": {
@@ -14,9 +14,12 @@
     "test:quality": "node --test scripts/quality.test.mjs",
     "test:browser": "node scripts/smoke.mjs",
     "test:browser:modes": "node scripts/smoke-modes.mjs",
-    "test:browser:arena": "node scripts/smoke-arena.mjs"
+    "test:browser:arena": "node scripts/smoke-arena.mjs",
+    "test:browser:workspace": "node scripts/smoke-workspace.mjs",
+    "test:browser:experience": "node scripts/smoke-experience.mjs"
   },
   "dependencies": {
+    "katex": "0.19.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
@@ -24,6 +27,7 @@
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.0",
+    "@types/katex": "^0.16.8",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^5.0.0",

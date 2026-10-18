@@ -1,0 +1,9 @@
+[Unit]
+Description=Zone private beta readiness and backup freshness
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/zone/zone-maintenance.py check
+UMask=0077
+TimeoutStartSec=30

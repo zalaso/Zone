@@ -1,20 +1,30 @@
 services:
   zone:
-    build: .
-    image: zone:local
+    build:
+      context: .
+      args:
+        ZONE_EXTRAS: workspace,all-llm
+    image: zone:1.0.0
     ports:
-      - '127.0.0.1:8766:8765'
+      - '127.0.0.1:8767:8765'
+    command: [workspace, --data, /data, --host, 0.0.0.0, --container-local, --port, '8765', --origin, '${ZONE_ORIGIN:-http://127.0.0.1:8767}', --web-dir, /app/web]
     environment:
-      ZONE_OPERATOR_TOKEN: ${ZONE_OPERATOR_TOKEN:?Set a random operator token before starting}
-      ZONE_ENV: local
+      ZONE_CONNECTION_KEY: ${ZONE_CONNECTION_KEY:-}
     volumes:
       - zone-data:/data
     read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:size=128m,mode=1777
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
-    restart: 'no'
+    mem_limit: 768m
+    pids_limit: 128
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: '2'
 volumes:
   zone-data:

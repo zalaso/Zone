@@ -1,5 +1,8 @@
 # Laboratorio web locale — fasi 5–7
 
+> Historical/advanced engineering reference. For the version 1.0 supported installation start with [Getting started](getting-started.md), [AI connections](ai-connections.md) and [self-hosting](self-hosting.md). Earlier phase statuses describe that earlier revision, not missing release features or a current hosted service.
+
+
 La UI in `frontend/` è un client React/TypeScript/Vite della [API locale](backend.md). Usa solo `/v1` sullo stesso origin; Vite inoltra queste richieste al backend su `127.0.0.1:8765`. Non contiene un modello LLM, non esegue formule o codice inviati come testo e non legge direttamente SQLite o i file del mondo. Per questa fase una persona può compilare i messaggi del ruolo agente e quelli dell'operatore nella stessa pagina. La separazione dei ruoli è applicata dal backend tramite token diversi. La fase 6 aggiunge [cinque modalità locali](public-modes.md): un agente gestito sul server può usare la baseline offline predefinita oppure un provider configurato esplicitamente. Il browser non chiama provider esterni.
 
 ## Prima sessione locale

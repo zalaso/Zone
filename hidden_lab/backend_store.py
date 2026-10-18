@@ -61,10 +61,16 @@ class SQLiteRepository:
                     db.execute("INSERT INTO worlds(id,record_json,manifest_json) VALUES(?,?,?)",
                                (world_id, _json(record), _json(local_manifest(record))))
 
-    def register_world(self, record):
+    def register_world(self, record, *, owner=None, limit=20):
         manifest = local_manifest(record)
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
+            if owner is not None:
+                existing = db.execute('SELECT account_id FROM workspace_worlds WHERE world_id=?', (record['world_id'],)).fetchone()
+                if existing and existing[0] != owner:
+                    raise ConflictError()
+                if not existing and db.execute('SELECT COUNT(*) FROM workspace_worlds WHERE account_id=?', (owner,)).fetchone()[0] >= limit:
+                    raise ValidationError('Limite mondi personali raggiunto.')
             from .integrity_store import IntegrityCatalog
             IntegrityCatalog(self).check_registration(db, record)
             old = db.execute("SELECT record_json FROM worlds WHERE id=?", (record["world_id"],)).fetchone()
@@ -72,6 +78,8 @@ class SQLiteRepository:
                 raise ConflictError()
             db.execute("INSERT OR IGNORE INTO worlds VALUES(?,?,?)",
                        (record["world_id"], _json(record), _json(manifest)))
+            if owner is not None:
+                db.execute('INSERT OR IGNORE INTO workspace_worlds VALUES(?,?)', (record['world_id'], owner))
         return manifest
 
     def read_world(self, world_id):
@@ -100,6 +108,10 @@ class SQLiteRepository:
                 "SELECT manifest_json FROM worlds ORDER BY id").fetchall()]
 
     def _insert_session(self, db, world_id, agent_token_hash, apparatus_message, profile):
+        from .identity_store import CURRENT_ACCOUNT, charge
+        owner = CURRENT_ACCOUNT.get()
+        if owner is not None:
+            charge(db, owner['account_id'], 'sessions')
         from .integrity_store import IntegrityCatalog
         IntegrityCatalog(self).session_admission(db, world_id, profile)
         session_id = secrets.token_hex(16)
@@ -110,6 +122,8 @@ class SQLiteRepository:
         db.execute("INSERT INTO events(session_id,seq,actor,message_json) VALUES(?,?,?,?)",
                    (session_id, 1, "apparatus", _json(apparatus_message)))
         db.execute("INSERT INTO session_profiles VALUES(?,?)", (session_id, _json(profile)))
+        if owner is not None:
+            db.execute('INSERT INTO session_owners VALUES(?,?)', (session_id, owner['account_id']))
         return session_id
 
     def create_session(self, world_id, agent_token_hash, apparatus_message, profile=None):
@@ -187,6 +201,8 @@ class SQLiteRepository:
                 raise ConflictError()
             if count >= max_calls:
                 raise ValidationError("Budget chiamate agente esaurito.")
+            from .identity_store import charge_session
+            charge_session(db, session_id, 'model_calls')
             db.execute("INSERT INTO agent_calls VALUES(?,?,?,?)", (session_id, count + 1, "started", "{}"))
             return count + 1
 
@@ -207,6 +223,10 @@ class SQLiteRepository:
                              (session_id,)).fetchone()[0]
         if version != expected_version:
             raise ConflictError()
+        from .identity_store import charge_session
+        for _actor, message in entries:
+            if message['type'] == 'execution_started':
+                charge_session(db, session_id, 'experiments')
         if any(message["type"] == "reveal_recorded" for _actor, message in entries):
             from .integrity_store import IntegrityCatalog
             catalog = IntegrityCatalog(self)

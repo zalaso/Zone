@@ -8,6 +8,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import secrets
 import socket
 import subprocess
@@ -53,7 +54,7 @@ print(json.dumps({"version": hidden_lab.__version__, "installed_outside_checkout
 def clean_environment():
     env = dict(os.environ)
     for key in list(env):
-        if key.upper() in {"PYTHONPATH", "PYTHONHOME", "ZONE_OPERATOR_TOKEN", "ZONE_ENV"} or key.upper().endswith(("API_KEY", "API_TOKEN")):
+        if key.upper() in {"PYTHONPATH", "PYTHONHOME", "ZONE_OPERATOR_TOKEN", "ZONE_ENV", "ZONE_CONNECTION_KEY"} or key.upper().endswith(("API_KEY", "API_TOKEN")):
             env.pop(key)
     env.update(MPLBACKEND="Agg", ZONE_ENV="local", PYTHONDONTWRITEBYTECODE="1")
     return env
@@ -246,7 +247,59 @@ class Verification:
         self.start(restored)
         assert self.api_snapshot(initial) == api, "Restore changed replay"
         assert self.snapshot(restored) == initial
-        return public_report(self.args.mode, installation, initial)
+        self.stop()
+        self.verify_workspace()
+        return {**public_report(self.args.mode, installation, initial), 'installed_workspace_ui': True}
+
+    def verify_workspace(self):
+        """Prove the supported launcher and installed UI, not an editable checkout."""
+        data = str(self.out / 'workspace') if self.args.mode == 'wheel' else '/data/workspace'
+        origin = f'http://127.0.0.1:{self.port}'
+        if self.args.mode == 'wheel':
+            command = [self.python, '-m', 'hidden_lab', 'workspace', '--data', data,
+                       '--port', str(self.port), '--origin', origin]
+            self.server_log = (self.out / 'workspace-server.log').open('ab')
+            self.process = subprocess.Popen(command, cwd=self.out, env=self.env, stdout=self.server_log, stderr=subprocess.STDOUT)
+        else:
+            self.run(['docker', 'run', '-d', '--name', self.container, '--read-only', '--tmpfs', '/tmp',
+                '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '-v', self.volume + ':/data',
+                '-p', f'127.0.0.1:{self.port}:8765', self.args.image, 'workspace', '--data', data,
+                '--host', '0.0.0.0', '--container-local', '--port', '8765', '--origin', origin,
+                '--web-dir', '/app/web'])
+            self.container_created = True
+        deadline = time.monotonic() + 75
+        while time.monotonic() < deadline:
+            try:
+                status, _, body = http_read(self.port, '/')
+                if status == 200:
+                    break
+            except (URLError, TimeoutError, ConnectionError):
+                pass
+            if self.process and self.process.poll() is not None:
+                raise RuntimeError('Installed workspace failed; see private workspace-server.log')
+            time.sleep(.5)
+        else:
+            raise RuntimeError('Installed workspace readiness timeout')
+        assert b'<!doctype html>' in body.lower()
+        for asset in re.findall(rb'(?:src|href)="(/assets/[^\"]+)"', body):
+            assert http_read(self.port, asset.decode())[0] == 200
+        assert json.loads(http_read(self.port, '/v1/auth/config')[2])['registration_open']
+        for route in ('/admin-key.txt', '/connection.key', '/workspace.db'):
+            assert http_read(self.port, route)[0] == 404
+        from http.cookiejar import CookieJar
+        from urllib.request import HTTPCookieProcessor
+        opener = build_opener(ProxyHandler({}), HTTPCookieProcessor(CookieJar()))
+        request = Request(origin + '/v1/auth/register', data=json.dumps({
+            'handle': 'clean_install_user', 'password': 'synthetic-password-123'}).encode(),
+            headers={'Content-Type': 'application/json', 'Origin': origin})
+        with opener.open(request, timeout=10) as response:
+            account = json.load(response)
+        assert account['account']['role'] == 'member'
+        with opener.open(origin + '/v1/worlds', timeout=10) as response:
+            worlds = json.load(response)['worlds']
+        assert len(worlds) == 1
+        assert 'config' not in worlds[0] and 'generator_seed' not in worlds[0]
+        self.stop()
 
     def cleanup(self):
         try:

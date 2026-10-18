@@ -1,9 +1,19 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { api, ApiError } from './api'
+import { accountTransport, api, ApiError } from './api'
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { accountTransport(false); vi.unstubAllGlobals() })
 
 describe('confine HTTP del frontend', () => {
+  it('usa cookie same-origin e CSRF per account, senza token legacy sulle sessioni', async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }))
+    vi.stubGlobal('fetch', fetcher)
+    accountTransport(true, 'csrf-synthetic')
+    await api.run('c'.repeat(32), 4, 'e1', 'ignored-legacy-secret')
+    expect(fetcher.mock.calls[0][1].credentials).toBe('same-origin')
+    expect(fetcher.mock.calls[0][1].headers['X-Zone-CSRF']).toBe('csrf-synthetic')
+    expect(fetcher.mock.calls[0][1].headers['X-Zone-Token']).toBeUndefined()
+    expect(fetcher.mock.calls[0][1].body).not.toContain('secret')
+  })
   it('manda il token solo nell’header e non nelle letture pubbliche', async () => {
     const fetcher = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ session_id: 'a'.repeat(32), agent_token: 'agent-secret' }), { status: 201 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ events: [], next_after: 0 }), { status: 200 }))

@@ -1,20 +1,28 @@
 # Changelog
 
-## 0.11.0 — 8 ottobre 2026, verifica distribuzione
+## 1.0.0 — 2026-10-18
 
-- Verificatore offline condiviso per installazione wheel pulita e container: server HTTP reale, riavvio, backup a server avviato e restore separato con confronto completo dello stato e del replay.
-- Risorse Docker isolate e temporanee, SDK provider assenti nel runtime, chiavi provider escluse dall'ambiente e report senza dati privati.
-- CI Linux/Windows Python 3.11/3.12 estesa alla wheel pulita; container verificato con health strettamente `healthy` e volume persistente fra avvii.
+First complete public, self-hosted application release, licensed MIT.
 
-Formati scientifici e schema SQLite invariati. Nessun trial LLM reale o deployment pubblico; evidenze e limiti in [distribuzione](docs/distribution.md) e [verifiche](docs/verification.md).
+- Supported `zone workspace` / `python -m hidden_lab workspace` launcher: persistent private data, generated starter world, diagnostic Arena challenge, member registration and separate host-owner administration.
+- Compiled web UI included in wheel and source release; Node is only needed when developing/building from source. SHA256SUMS and strict archive/publication checks accompany release artifacts.
+- All six modes, scientific protocol and separate human approvals retained. Guided interface, glossary, profile quotas, public-measurement playback, preregistered prediction overlay, LaTeX/MathML and reduced motion.
+- Personal API vault, outbound ChatGPT/Ollama/API connectors, per-session model pinning and revocation. No startup inference, implicit experiment or billing fallback.
+- Benchmark v0.3 with four conditions, interpolation/extrapolation metrics and strict pairing; seeded Forge v1 levels 1–5, bounded AST identification, Arena and Integrity v1 preserved.
+- SQLite schema 4, account ownership, CSRF, quotas, idempotent receipts, audit, migration checks, health and verified backup/restore.
+- Generic Docker/HTTPS setup, English and Italian entry guides, operator/developer documentation, data policy responsibilities, security and support channels, dependency notices and research citation.
+- CI verifies Linux/Windows Python, frontend, installed distribution, offline browser workflows and Docker without provider credentials or inference.
 
-## 0.10.0 — 6 ottobre 2026, release locale preparata
+### Compatibility notes
 
-Consolida le fasi 0–8 e completa l'implementazione delle fasi 9–10: licenza MIT scelta dall'autore, guide di contribuzione e sicurezza, template, versioni Python/frontend coerenti, CI offline e container locale. Nessuna release remota, immagine pubblicata o deployment eseguito.
+Existing CLI, benchmark files and `serve` flows remain supported. Database migrations are forward checked; make a verified backup before upgrade. Rollback requires the prior version and its matching backup, not an automatic schema downgrade.
 
-- Migrazioni SQLite additive versionate con checksum, adozione dello schema precedente e rollback transazionale in caso di errore.
-- CLI `ops`: stato, verifica, migrazione, backup live consistente, restore su file nuovo, conteggio della crescita e demo completa offline.
-- Health live/ready, log HTTP a campi consentiti, errori interni ridotti e header browser; API e bundle compilato possono condividere l'origine.
-- Controlli Ruff, TypeScript, lint AST e scansioni del bundle/archivi; istruzioni per ambienti separati, ripristino e pubblicazione successiva.
+For safety, advanced `chatgpt transfer-vps` now requires explicit `--ssh-host` and `--container` in addition to the consent flag. Pending transfers are bound to the chosen destination; changing it requires reconciliation. This is not used by the normal local connector and performs no inference.
 
-Benchmark v0.3, Integrity v1 e Arena BYOA v1 mantengono i formati esistenti e le metriche separate. Il passaggio da 0.4.0 Python / 0.5.0 frontend a 0.10.0 uniforma la versione del progetto; non rinumera i protocolli. Le versioni precedenti erano revisioni locali, non release pubblicate. Dettagli storici in [verifiche](docs/verification.md).
+The default Compose application is now a complete account workspace, rather than an empty token-only server. Existing explicit `serve` deployments remain unchanged until their operator upgrades. Initial administrator keys expire and can be rotated or recovered on the trusted host.
+
+## Development history (0.1–0.11)
+
+The preceding local versions introduced the simulator/protocol, multi-provider operator loop, benchmark controls, Forge, identification, SQLite web backend, six modes, BYOA Arena, Integrity and operational tooling. Later local work added identity, per-user AI connections and the guided interface. A small real-model pilot demonstrated the protocol; it did not establish benchmark/model superiority. These development notes are engineering history rather than additional required release phases.
+
+Public research limits are in [limitations](docs/limitations.md). Reproducible release evidence is in [release verification](docs/release-checklist.md).

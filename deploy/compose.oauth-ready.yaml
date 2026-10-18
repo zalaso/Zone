@@ -1,0 +1,5 @@
+# Preparation only: SDK image plus private credential mount, still offline.
+services:
+  zone:
+    volumes:
+      - ./secrets/oauth:/auth

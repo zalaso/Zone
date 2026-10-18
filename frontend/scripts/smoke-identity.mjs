@@ -1,0 +1,92 @@
+// Real browser / compiled frontend / loopback server, synthetic invited accounts only.
+import assert from 'node:assert/strict'
+import { chromium } from 'playwright'
+
+const baseURL = process.env.ZONE_SMOKE_BASE_URL
+if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(baseURL)) throw new Error('Loopback smoke only')
+const memberKey = process.env.ZONE_SMOKE_ACCOUNT_KEY
+const otherKey = process.env.ZONE_SMOKE_OTHER_KEY
+const adminKey = process.env.ZONE_SMOKE_ADMIN_KEY
+if (!memberKey || !otherKey || !adminKey) throw new Error('Synthetic fixture keys required')
+const browser = await chromium.launch(process.env.ZONE_BROWSER_EXECUTABLE
+  ? { executablePath: process.env.ZONE_BROWSER_EXECUTABLE, headless: true }
+  : { channel: 'msedge', headless: true })
+try {
+  console.error('zone-smoke-stage:login')
+  const context = await browser.newContext({ baseURL, viewport: { width: 1280, height: 900 } })
+  const page = await context.newPage()
+  page.setDefaultTimeout(15000)
+  const errors = []
+  page.on('pageerror', error => errors.push(error.message))
+  await page.goto('/')
+  assert.equal(await page.getByRole('button', { name: 'Crea sessione', exact: true }).count(), 0)
+  await page.getByLabel('Chiave di accesso', { exact: true }).fill(memberKey)
+  await page.getByRole('button', { name: 'Accedi', exact: true }).click()
+  await page.getByRole('button', { name: 'Crea sessione', exact: true }).waitFor()
+  console.error('zone-smoke-stage:experiment')
+  assert.equal(await page.getByLabel('Token operatore', { exact: true }).count(), 0)
+  assert.equal(await page.getByText('Amministrazione account', { exact: true }).count(), 0)
+  await page.getByRole('button', { name: 'Crea sessione', exact: true }).click()
+  await page.getByRole('heading', { name: 'Proponi un esperimento' }).waitFor()
+  const sid = await page.locator('.session-id').first().innerText()
+  await page.getByLabel('Scopo del lancio').fill('Prova multiutente offline nel browser reale.')
+  await page.getByRole('button', { name: 'Invia richiesta', exact: true }).click()
+  await page.getByLabel('Motivazione', { exact: true }).fill('Autorizzazione sintetica esplicita.')
+  await page.getByRole('button', { name: 'Registra decisione' }).click()
+  await page.getByRole('button', { name: 'Esplorazione', exact: true }).click()
+  const before = await (await page.request.get(`/v1/sessions/${sid}`)).json()
+  assert.equal(before.executed_experiments, 0)
+  await page.getByRole('button', { name: 'Esegui esperimento →' }).click()
+  await page.getByText('5 misure registrate', { exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Aggiorna utilizzo', exact: true }).click()
+  await page.getByText('1/30 sessioni · 1/100 lanci · 0/50 chiamate al modello', { exact: true }).waitFor()
+  assert.equal(await page.evaluate(() => localStorage.length + sessionStorage.length), 0)
+  assert(!await page.evaluate(() => document.cookie.includes('zone_local_session')))
+  const csrf = (await (await page.request.get('/v1/auth/me')).json()).csrf
+  console.error('zone-smoke-stage:reload')
+  assert.equal((await page.request.post(`/v1/sessions/${sid}/stop`, { data: { expected_version: 1, reason: 'operator_stop' } })).status(), 403)
+  await page.reload()
+  await page.getByRole('button', { name: 'Crea sessione', exact: true }).waitFor()
+  await page.getByLabel('ID sessione', { exact: true }).fill(sid)
+  await page.getByRole('button', { name: 'Apri sessione', exact: true }).click()
+  await page.getByRole('heading', { name: 'Proponi un esperimento' }).waitFor()
+  await page.screenshot({ path: process.env.ZONE_SMOKE_OUTPUT + '/identity-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'Mobile overflow')
+  await page.screenshot({ path: process.env.ZONE_SMOKE_OUTPUT + '/identity-mobile.png', fullPage: true })
+  const other = await browser.newContext({ baseURL })
+  console.error('zone-smoke-stage:isolation')
+  const otherPage = await other.newPage()
+  await otherPage.goto('/')
+  await otherPage.getByLabel('Chiave di accesso', { exact: true }).fill(otherKey)
+  await otherPage.getByRole('button', { name: 'Accedi', exact: true }).click()
+  await otherPage.getByRole('button', { name: 'Crea sessione', exact: true }).waitFor()
+  assert.equal((await otherPage.request.get(`/v1/sessions/${sid}`)).status(), 404)
+  const admin = await browser.newContext({ baseURL })
+  console.error('zone-smoke-stage:admin')
+  const adminPage = await admin.newPage()
+  await adminPage.goto('/')
+  await adminPage.getByLabel('Chiave di accesso', { exact: true }).fill(adminKey)
+  await adminPage.getByRole('button', { name: 'Accedi', exact: true }).click()
+  await adminPage.getByText('Amministrazione account', { exact: true }).click()
+  await adminPage.getByLabel('Nome account', { exact: true }).fill('browser_invite')
+  await adminPage.getByRole('button', { name: 'Crea account invitato', exact: true }).click()
+  await adminPage.getByLabel('Nuova chiave', { exact: true }).waitFor()
+  assert((await adminPage.getByLabel('Nuova chiave', { exact: true }).inputValue()).startsWith('zk_'))
+  await adminPage.getByRole('button', { name: 'Nascondi e dimentica', exact: true }).click()
+  const accounts = (await (await adminPage.request.get('/v1/admin/accounts')).json()).accounts
+  console.error('zone-smoke-stage:rotation')
+  const member = accounts.find(a => a.handle === 'alice')
+  await adminPage.getByLabel('Account da gestire', { exact: true }).selectOption(member.account_id)
+  await adminPage.getByRole('button', { name: 'Ruota chiave e revoca sessioni', exact: true }).click()
+  await adminPage.getByLabel('Nuova chiave', { exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Aggiorna utilizzo', exact: true }).click()
+  await page.getByLabel('Chiave di accesso', { exact: true }).waitFor()
+  assert.equal(await page.getByLabel('ID sessione', { exact: true }).count(), 0)
+  assert.equal((await page.request.get(`/v1/sessions/${sid}`)).status(), 401)
+  assert.equal((await page.request.post('/v1/auth/logout', { data: {}, headers: { Origin: baseURL, 'X-Zone-CSRF': csrf } })).status(), 401)
+  assert.deepEqual(errors, [])
+  console.log(JSON.stringify({ browser: 'chromium', login_cookie_reload: true, explicit_experiment: true,
+    cross_account_denied: true, csrf_denied: true, admin_invite_rotation: true, revocation_unmounts_data: true,
+    persistent_browser_storage_empty: true, mobile_no_overflow: true, real_model_calls: 0 }))
+} finally { await browser.close() }

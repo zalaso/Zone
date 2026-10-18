@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use Zone in research, cite the release and record your experiment configuration."
+title: "Zone: a laboratory for discovering unfamiliar physical laws"
+type: software
+version: 1.0.0
+date-released: 2026-10-18
+url: "https://github.com/zalaso/Zone"
+repository-code: "https://github.com/zalaso/Zone"
+license: MIT
+authors:
+  - name: "Guido (zalaso)"

@@ -1,19 +1,28 @@
 """Google Gen AI SDK, generate_content con response_json_schema."""
 
+import json
 import os
 
 from .agent_contract import ModelRequest
 from .protocol import ValidationError
-from .provider_base import ModelReply, ProviderError, count, metadata
+from .provider_base import ModelReply, ProviderError, count, metadata, validate_remote_settings
 
 
-def gemini_payload(request: ModelRequest):
-    return {"model": request.model, "contents": request.user_content(),
-            "config": {"system_instruction": request.instructions,
-                       "response_mime_type": "application/json",
-                       "response_json_schema": request.schema,
-                       "max_output_tokens": request.max_output_tokens,
-                       "tools": []}}
+def gemini_payload(request: ModelRequest, *, output_mode="schema"):
+    if output_mode not in ("schema", "json"):
+        raise ValidationError("Modalità Gemini non valida: scegli schema o json.")
+    config = {"system_instruction": request.instructions, "response_mime_type": "application/json",
+              "max_output_tokens": request.max_output_tokens, "tools": [],
+              "automatic_function_calling": {"disable": True}}
+    content = request.user_content()
+    if output_mode == "schema":
+        config["response_json_schema"] = request.schema
+    else:
+        # The contract remains public and explicit; application validation is unchanged.
+        public = json.loads(content)
+        public["message_contract"] = request.schema
+        content = json.dumps(public, ensure_ascii=False, allow_nan=False)
+    return {"model": request.model, "contents": content, "config": config}
 
 
 def gemini_metadata(response, completed):
@@ -31,16 +40,22 @@ def gemini_metadata(response, completed):
 class GeminiClient:
     provider = "gemini"
 
-    def __init__(self, settings, *, sdk=None):
+    def __init__(self, settings, *, sdk=None, output_mode="schema", api_key=None):
+        validate_remote_settings(settings)
+        if output_mode not in ("schema", "json"):
+            raise ValidationError("Modalità Gemini non valida: scegli schema o json.")
+        self.output_mode = output_mode
         from google import genai
         from google.genai import types
-        key = os.environ.get("GEMINI_API_KEY")
+        key = api_key if api_key is not None else os.environ.get("GEMINI_API_KEY")
         if not key or not key.strip():
             raise ValidationError("Imposta GEMINI_API_KEY nell'ambiente.")
         self.sdk_version = genai.__version__
         self.generation_settings = {"response_mime_type": "application/json",
-                                    "response_json_schema": True, "max_output_tokens": settings.max_output_tokens,
-                                    "retry_attempts": 1, "timeout_seconds": settings.timeout, "tools": []}
+                                    "response_json_schema": output_mode == "schema", "output_mode": output_mode,
+                                    "max_output_tokens": settings.max_output_tokens,
+                                    "retry_attempts": 1, "timeout_seconds": settings.timeout, "tools": [],
+                                    "automatic_function_calling": False}
         options = types.HttpOptions(timeout=int(settings.timeout * 1000),
                                     retry_options=types.HttpRetryOptions(attempts=1),
                                     client_args={"trust_env": False})
@@ -52,12 +67,12 @@ class GeminiClient:
         from google.genai import errors
         import httpx
         try:
-            response = self.sdk.models.generate_content(**gemini_payload(request))
+            response = self.sdk.models.generate_content(**gemini_payload(request, output_mode=self.output_mode))
         except errors.APIError as exc:
             code = getattr(exc, "code", None)
             mapped = {401: "authentication", 403: "authentication", 429: "rate_limit"}.get(code)
             raise ProviderError(mapped or ("server_error" if type(code) is int and code >= 500
-                                          else "request_rejected")) from None
+                                          else "request_rejected"), http_status=code) from None
         except httpx.TimeoutException:
             raise ProviderError("timeout") from None
         except httpx.RequestError:

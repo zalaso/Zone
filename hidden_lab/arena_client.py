@@ -33,11 +33,13 @@ def model_request(snapshot, settings, remaining_calls):
 
 class ArenaClient:
     """Transport httpx/TestClient iniettato. Conservare la key per eventuali retry manuali."""
-    def __init__(self, transport, token):
+    def __init__(self, transport, token, *, account_key=None):
         self.transport, self.token = transport, token
+        self.account_key = account_key
 
     def headers(self):
-        return {"X-Zone-Arena-Version": "1", "X-Zone-Token": self.token}
+        return {"X-Zone-Arena-Version": "1", "X-Zone-Token": self.token,
+                **({'Authorization': 'Bearer ' + self.account_key} if self.account_key else {})}
 
     def read(self, path):
         reply = self.transport.get("/v1/arena/" + path, headers=self.headers())

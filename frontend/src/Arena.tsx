@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { arenaApi, type ArenaAgent, type ArenaBoard, type ArenaChallenge, type ArenaTrial } from './arena-api'
 import { EventCard, fmt, ResultView } from './view'
 import type { WorldManifest } from './types'
+import { useIdentity } from './Identity'
 
 const dimensionNames: Record<string, string> = {
   acceleration_rmse: 'RMSE numerico complessivo', interpolation_rmse: 'RMSE interpolation',
@@ -11,8 +12,11 @@ const dimensionNames: Record<string, string> = {
 }
 
 export function Arena({ worlds }: { worlds: WorldManifest[] }) {
+  const identity = useIdentity()
+  const staff = !identity || identity.role !== 'member'
+  const admin = !identity || identity.role === 'admin'
   const availableWorlds = worlds.filter(w => !w.builder_version && (!w.integrity || ['blind_test', 'untracked'].includes(w.integrity.state)))
-  const [token, setToken] = useState('')
+  const [token, setToken] = useState(identity ? 'account' : '')
   const [challenges, setChallenges] = useState<ArenaChallenge[]>([])
   const [cid, setCid] = useState('')
   const [worldId, setWorldId] = useState(availableWorlds[0]?.world_id ?? '')
@@ -61,12 +65,14 @@ export function Arena({ worlds }: { worlds: WorldManifest[] }) {
   }
   function submit(e: FormEvent, work: () => Promise<void>) { e.preventDefault(); void act(work) }
 
+  if (!staff) return <section className="panel"><h2>Il tuo agente in Arena</h2><p>Usa il client BYOA con la tua chiave account e il token dell’agente associato dall’amministratore. Lo staff autorizza ed esegue ogni esperimento. La console Arena è riservata agli operatori.</p></section>
+
   return <div className="arena">
     <section className="panel"><span className="kicker">08 / Integrity v1</span><h2>Zone Arena</h2>
       <p>Collega il tuo agente al laboratorio locale. L’agente propone e consegna; l’operatore approva ed esegue ogni lancio. Nessuna chiamata a un modello parte da questa pagina.</p>
       <p className="notice">Challenge comparabili: stesso mondo, probe, budget e limiti; solo esplorazione, senza modifiche o suggerimenti teorici. Un trial per agente e challenge.</p>
       <p>Il test privato è riservato ad Arena. I punteggi degli agenti restano nascosti fino alla chiusura; un reveal ritira il caso. I mondi senza split sono confronti diagnostici.</p>
-      <form onSubmit={e => submit(e, () => refresh())}><label>Token operatore Arena<input type="password" autoComplete="off" required value={token} onChange={e => { setToken(e.target.value); setIssued(null); setShowToken(false) }} /></label>
+      <form onSubmit={e => submit(e, () => refresh())}>{!identity && <label>Token operatore Arena<input type="password" autoComplete="off" required value={token} onChange={e => { setToken(e.target.value); setIssued(null); setShowToken(false) }} /></label>}
         <button className="button primary" disabled={busy}>Connetti Arena</button></form>
       <p className="field-hint">Token in memoria; ricaricare la pagina li elimina. Il protocollo per il tuo client è in docs/arena.md.</p>
     </section>
@@ -103,7 +109,7 @@ export function Arena({ worlds }: { worlds: WorldManifest[] }) {
         {trial.status === 'ready_to_run' && <button className="button primary" disabled={busy} onClick={() => void act(() => trialAction('run', { request_id: trial.pending_request_id }))}>Esegui esperimento Arena</button>}
         {trial.status === 'scoring_pending' && <button className="button primary" disabled={busy} onClick={() => void act(() => trialAction('score', {}))}>Riprendi punteggio Arena</button>}
         {!['scored', 'stopped', 'revealed'].includes(trial.status) && <details><summary>Arresta questo trial</summary><button className="button danger" disabled={busy} onClick={() => void act(() => trialAction('stop', { reason: trial.status === 'execution_started' ? 'interrupted_execution' : 'operator_stop' }))}>Conferma arresto Arena</button></details>}
-        {selected.closed && ['scored', 'stopped'].includes(trial.status) && <><label className="check-row"><input type="checkbox" checked={revealChecked} onChange={e => setRevealChecked(e.target.checked)} />Confermo il reveal privato Arena</label><button className="button danger" disabled={busy || !revealChecked} onClick={() => void act(async () => { await trialAction('reveal', { confirm: 'reveal' }); setReveal(await arenaApi.read(`sessions/${trial.session_id}/reveal`, token)) })}>Rivela mondo Arena</button></>}
+        {admin && selected.closed && ['scored', 'stopped'].includes(trial.status) && <><label className="check-row"><input type="checkbox" checked={revealChecked} onChange={e => setRevealChecked(e.target.checked)} />Confermo il reveal privato Arena</label><button className="button danger" disabled={busy || !revealChecked} onClick={() => void act(async () => { await trialAction('reveal', { confirm: 'reveal' }); setReveal(await arenaApi.read(`sessions/${trial.session_id}/reveal`, token)) })}>Rivela mondo Arena</button></>}
         {trial.scores && <ResultView scores={trial.scores} />}
         <div className="timeline">{trial.events?.map(event => <EventCard key={event.seq} event={event} />)}</div>
       </div>}

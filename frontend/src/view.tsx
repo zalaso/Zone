@@ -1,3 +1,4 @@
+import { ScientificText } from './ScientificText'
 import type { LabEvent, Experiment, Probe, Scores } from './types'
 
 export function asText(value: unknown): string { return typeof value === 'string' ? value : '' }
@@ -27,16 +28,16 @@ export function EventCard({ event }: { event: LabEvent }) {
     <div className="event-meta"><span className="event-seq">{String(event.seq).padStart(2, '0')}</span><span>{event.actor}</span></div>
     <div className="event-body"><h3>{title[type] ?? type}</h3>
       {type === 'apparatus' && <p>Coordinate: {asText(m.coordinates)}. Budget: {fmt(m.experiment_budget)} esperimenti.</p>}
-      {type === 'experiment_request' && <><p>{asText(m.purpose)}</p><p className="muted">Richiesta {asText(m.request_id)}</p></>}
-      {type === 'operator_decision' && <p>{asText(m.action)} · {asText(m.reason)}</p>}
+      {type === 'experiment_request' && <><p><ScientificText text={asText(m.purpose)} /></p><p className="muted">Richiesta {asText(m.request_id)}</p></>}
+      {type === 'operator_decision' && <p>{m.action === 'approve' ? 'Approvato' : m.action === 'modify' ? 'Modificato' : 'Rifiutato'} · {asText(m.reason)}</p>}
       {type === 'execution_mode' && <p>{m.mode === 'verification' ? 'Verifica con previsione' : 'Esplorazione'}</p>}
-      {type === 'hypothesis' && <><p>{asText(m.statement)}</p><p className="muted">ID {asText(m.hypothesis_id)} · Evidenze: {Array.isArray(m.evidence) && m.evidence.length ? m.evidence.join(', ') : 'nessuna'}</p>{Array.isArray(m.uncertainties) && m.uncertainties.length > 0 && <p className="muted">Incertezze: {m.uncertainties.join('; ')}</p>}</>}
+      {type === 'hypothesis' && <><p><ScientificText text={asText(m.statement)} /></p><p className="muted">ID {asText(m.hypothesis_id)} · Evidenze: {Array.isArray(m.evidence) && m.evidence.length ? m.evidence.join(', ') : 'nessuna'}</p>{Array.isArray(m.uncertainties) && m.uncertainties.length > 0 && <p className="muted">Incertezze: {m.uncertainties.join('; ')}</p>}</>}
       {type === 'prediction' && <p>{points.length} punti preregistrati per {asText(m.request_id)}. Ipotesi {asText(m.hypothesis_id)}.</p>}
-      {type === 'operator_question' && <><p>{asText(m.question)}</p><p className="muted">Scopo: {asText(m.purpose)}</p></>}
-      {type === 'operator_answer' && <p>{asText(m.answer)}</p>}
+      {type === 'operator_question' && <><p><ScientificText text={asText(m.question)} /></p><p className="muted">Scopo: <ScientificText text={asText(m.purpose)} /></p></>}
+      {type === 'operator_answer' && <p><ScientificText text={asText(m.answer)} /></p>}
       {type === 'observation' && <p>{m.status === 'ok' ? `${points.length} misure registrate` : asText((m.error as { message?: unknown } | null)?.message)}</p>}
       {type === 'verification' && (m.status === 'ok' && m.metrics && typeof m.metrics === 'object' ? <dl className="experiment-summary"><div><dt>RMSE posizione</dt><dd>{fmt((m.metrics as Record<string, unknown>).position_rmse)} m</dd></div><div><dt>Errore massimo</dt><dd>{fmt((m.metrics as Record<string, unknown>).max_position_error)} m</dd></div></dl> : <p>Verifica non disponibile.</p>)}
-      {type === 'conclusion' && <><p>{asText(m.summary)}</p><p className="muted">Ipotesi finale: {asText(m.final_hypothesis_id) || 'nessuna'} · Evidenze: {Array.isArray(m.evidence) && m.evidence.length ? m.evidence.join(', ') : 'nessuna'}</p><p className="muted">Limiti: {Array.isArray(m.limits) ? m.limits.join('; ') : ''}</p><p className="muted">Alternative: {Array.isArray(m.alternatives) && m.alternatives.length ? m.alternatives.join('; ') : 'nessuna indicata'}</p></>}
+      {type === 'conclusion' && <><p><ScientificText text={asText(m.summary)} /></p><p className="muted">Ipotesi finale: {asText(m.final_hypothesis_id) || 'nessuna'} · Evidenze: {Array.isArray(m.evidence) && m.evidence.length ? m.evidence.join(', ') : 'nessuna'}</p><p className="muted">Limiti: {Array.isArray(m.limits) ? m.limits.join('; ') : ''}</p><p className="muted">Alternative: {Array.isArray(m.alternatives) && m.alternatives.length ? m.alternatives.join('; ') : 'nessuna indicata'}</p></>}
       {type === 'probe_challenge' && <p>{asProbes(m.probes).length} stati da prevedere. Le accelerazioni vere restano nascoste.</p>}
       {type === 'scientific_submission' && <p>Previsioni consegnate per {Array.isArray(m.predictions) ? m.predictions.length : 0} probe.</p>}
       {type === 'result_recorded' && <p>Valutazione completata. I punteggi sono visibili nel pannello Risultato.</p>}
@@ -52,10 +53,10 @@ function metricGroup(label: string, value: unknown) {
   if (!value || typeof value !== 'object') return null
   const data = value as Record<string, unknown>
   return <section className="result-group" key={label}><h3>{label}</h3><div className="metric-grid">
-    {Object.entries(data).filter(([, v]) => typeof v === 'number').map(([key, v]) => metric(key.replaceAll('_', ' '), v))}
+    {Object.entries(data).filter(([, v]) => typeof v === 'number').map(([key, v]) => metric(({ acceleration_rmse: 'Errore medio delle accelerazioni (RMSE)', max_acceleration_error: 'Errore massimo delle accelerazioni', normalized_rmse: 'Errore normalizzato', position_rmse: 'Errore medio delle posizioni (RMSE)' } as Record<string, string>)[key] ?? key.replaceAll('_', ' '), v))}
     {typeof data.empirically_equivalent === 'boolean' && <p>Equivalenza empirica: <strong>{data.empirically_equivalent ? 'Sì' : 'No'}</strong></p>}
     {typeof data.exact_match === 'boolean' && <p>Dipendenze esatte: <strong>{data.exact_match ? 'Sì' : 'No'}</strong></p>}
-  </div>{Boolean(data.by_category) && <div className="category-grid">{Object.entries(data.by_category as Record<string, unknown>).map(([name, nested]) => metricGroup(name, nested))}</div>}
+  </div>{Boolean(data.by_category) && <div className="category-grid">{Object.entries(data.by_category as Record<string, unknown>).map(([name, nested]) => metricGroup(name === 'interpolation' ? 'Stati nel dominio (interpolation)' : name === 'extrapolation' ? 'Stati esterni (extrapolation)' : name, nested))}</div>}
   {Boolean(data.metrics) && metricGroup('Griglia privata', data.metrics)}</section>
 }
 export function ResultView({ scores }: { scores: Scores }) {

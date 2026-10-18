@@ -1,0 +1,15 @@
+# Example for a host-native Caddy proxy. Replace the hostname; do not expose the app port.
+zone.example.org {
+    encode zstd gzip
+    header Strict-Transport-Security "max-age=86400"
+    request_body {
+        max_size 64KB
+    }
+    reverse_proxy 127.0.0.1:8767 {
+        transport http {
+            dial_timeout 3s
+            response_header_timeout 120s
+            max_conns_per_host 8
+        }
+    }
+}

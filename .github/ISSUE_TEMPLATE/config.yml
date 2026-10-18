@@ -1,1 +1,8 @@
 blank_issues_enabled: false
+contact_links:
+  - name: Questions and research ideas
+    url: https://github.com/zalaso/Zone/discussions
+    about: Ask about installation, experimental design or extensions.
+  - name: Private security report
+    url: https://github.com/zalaso/Zone/security/advisories/new
+    about: Do not include credentials or security details in a public issue.

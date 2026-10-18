@@ -8,14 +8,12 @@ Python 3.11 o successivo, Node 22 e pnpm 10.28.0. Da PowerShell nella radice:
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -c constraints-ci.txt -e '.[backend,all-llm,dev]'
+.\.venv\Scripts\python.exe -m pip install -c constraints-ci.txt -e '.[workspace,all-llm,dev]'
 $env:MPLBACKEND = 'Agg'
 $env:MPLCONFIGDIR = Join-Path (Get-Location) 'benchmark_data/mpl-cache'
 .\.venv\Scripts\python.exe -m ruff check hidden_lab tests tools
 .\.venv\Scripts\python.exe -m unittest discover -s tests -q
 .\.venv\Scripts\python.exe -m hidden_lab ops demo --out benchmark_data/contributor-demo
-.\.venv\Scripts\python.exe -m build --outdir dist
-.\.venv\Scripts\python.exe tools/check_release.py --archives dist
 cd frontend
 pnpm install --frozen-lockfile
 pnpm typecheck
@@ -25,6 +23,8 @@ pnpm test
 pnpm build
 pnpm check:bundle
 cd ..
+.\.venv\Scripts\python.exe tools/build_release.py --out dist
+.\.venv\Scripts\python.exe tools/check_release.py --archives dist
 git diff --check
 ```
 
@@ -41,3 +41,7 @@ Ruff controlla errori di sintassi, nomi e import inutilizzati; TypeScript usa co
 - Non effettuare chiamate reali, scaricare modelli, pubblicare artefatti o distribuire il servizio nei test. Un pilot reale richiede autorizzazione separata.
 
 Prima di una PR eseguire i controlli pertinenti e indicare test passati, eventuali skip e limiti. Non allegare database, token, pacchetti test privati, screenshot con segreti o log completi dei provider. Una segnalazione di sicurezza segue [SECURITY.md](SECURITY.md).
+
+## Release process
+
+The supported release is built with `python tools/build_release.py --out dist` after installing the frontend lockfile. It includes audited static assets in both wheel and source archive, preserves dependency notices and writes SHA256SUMS. Run `python tools/check_publication.py --history --archives dist` before publishing. The ordinary base-package build remains possible for CLI-only development; public application releases must include the UI. Never upload local databases or private test material. See [release gates](docs/release-checklist.md).

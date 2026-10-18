@@ -13,6 +13,8 @@ benchmark_runs/
 .cache/
 .env
 .env.*
+credentials.dpapi
+credentials.json
 *.db
 *.sqlite
 *.sqlite3
@@ -23,3 +25,10 @@ node_modules/
 .pnpm-store/
 frontend/dist/
 *.tsbuildinfo
+
+# Local installation data and generated, audited release web assets
+zone-data/
+hidden_lab/web/
+admin-key.txt
+connection.key
+!.env.example

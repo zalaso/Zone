@@ -91,7 +91,8 @@ def safe_generation(client):
     allowed = ("real_model", "policy", "response_format", "response_mime_type", "store", "truncation",
                "max_output_tokens", "max_retries", "timeout_seconds", "stream", "format", "temperature",
                "thinking_budget", "thinking_level", "num_predict", "max_tokens", "response_json_schema",
-               "retry_attempts", "automatic_download", "retries")
+               "retry_attempts", "automatic_download", "retries", "authentication", "max_output_tokens_supported",
+               "local_response_limit_bytes", "text_extraction_version")
     result = {key: value[key] for key in allowed if key in value and
             (value[key] is None or type(value[key]) in (str, int, float, bool))}
     if value.get("tools") == []:

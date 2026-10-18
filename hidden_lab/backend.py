@@ -103,15 +103,34 @@ def _version(value):
 
 def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None = None,
                operator_token=None, rate_limiter=None, agent_client=None, agent_settings=None,
-               day_clock=None, integrity_packs=(), static_dir=None):
+               day_clock=None, integrity_packs=(), static_dir=None, auth_mode='local',
+               public_origin=None, secure_cookies=True, identity_clock=None, agent_owner=None,
+               public_workspace=False, open_registration=False, connection_key=None,
+               connection_factory=None, max_accounts=1000):
     """App locale: baseline offline predefinita, provider reale solo se iniettato esplicitamente."""
-    token = operator_token if operator_token is not None else os.environ.get("ZONE_OPERATOR_TOKEN")
+    if auth_mode not in ('local', 'accounts'):
+        raise ValueError('Modalità autenticazione non supportata.')
+    if (public_workspace or open_registration) and auth_mode != 'accounts':
+        raise ValueError('Il workspace pubblico richiede accounts.')
+    if open_registration and not public_workspace:
+        raise ValueError('La registrazione richiede il workspace pubblico.')
+    if type(max_accounts) is not int or not 1 <= max_accounts <= 100000:
+        raise ValueError('Capacità account fra 1 e 100000.')
+    token = (secrets.token_urlsafe(32) if auth_mode == 'accounts' else
+             operator_token if operator_token is not None else os.environ.get("ZONE_OPERATOR_TOKEN"))
     if not isinstance(token, str) or len(token) < 32:
         raise ValueError("Imposta ZONE_OPERATOR_TOKEN con almeno 32 caratteri casuali.")
     if repository is None:
         if db_path is None:
             raise ValueError("Percorso SQLite mancante.")
         repository = SQLiteRepository(db_path, worlds)
+    if isinstance(repository, SQLiteRepository):
+        with repository._connect() as db:
+            has_accounts = bool(db.execute('SELECT 1 FROM accounts').fetchone())
+        if has_accounts != (auth_mode == 'accounts'):
+            raise ValueError('Database con account: usa --auth-mode accounts; per inizializzarlo usa identity init.')
+    elif auth_mode == 'accounts':
+        raise ValueError('La modalità account richiede SQLiteRepository.')
     limiter = rate_limiter or RateLimiter()
     if integrity_packs:
         if not isinstance(repository, SQLiteRepository):
@@ -122,9 +141,27 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
             IntegrityCatalog(repository).import_pack(validate_pack(pack))
     client = agent_client or OfflineLabClient()
     settings = agent_settings or AgentSettings("offline-affine-v1")
+    personal_plan = client.provider == 'chatgpt' and auth_mode == 'accounts'
+    if agent_owner is not None and not personal_plan:
+        raise ValueError('Un proprietario del piano richiede ChatGPT e accounts.')
+    if personal_plan:
+        if not isinstance(agent_owner, str) or not SESSION_ID.fullmatch(agent_owner):
+            raise ValueError('Configura l’ID account proprietario del piano ChatGPT.')
+        with repository._connect() as db:
+            owner = db.execute('SELECT enabled FROM accounts WHERE id=?', (agent_owner,)).fetchone()
+        if owner is None or not owner[0]:
+            raise ValueError('Il proprietario del piano deve essere un account Zone abilitato.')
+    offline_client = OfflineLabClient()
+    offline_settings = replace(settings, model='offline-affine-v1')
     day_clock = day_clock or (lambda: datetime.now(timezone.utc).date())
     in_flight = {}
     app = FastAPI(title="Zone local backend", version="1.0", docs_url=None, redoc_url=None)
+    connections = None
+    if public_workspace:
+        from .connections import Connections, install_connections
+        connections = Connections(repository, connection_key, client_factory=connection_factory)
+        app.state.connections = connections
+        install_connections(app, connections)
 
     @app.exception_handler(ValidationError)
     async def validation_error(_request, exc):
@@ -150,6 +187,12 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
         return await call_next(request)
 
     def authorize(request, stored, role):
+        if auth_mode == 'accounts':
+            account = getattr(request.state, 'account', None)
+            if account is None:
+                raise HTTPException(401, 'Accesso account richiesto.')
+            # The outer boundary has checked resource ownership. Legacy tokens grant nothing.
+            return
         supplied = request.headers.get("x-zone-token", "")
         if len(supplied) > 256:
             raise HTTPException(401, "Token mancante o non valido.")
@@ -181,11 +224,50 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
     def agent_turns(stored):
         return sum(e["actor"] == "agent" for e in stored["events"])
 
-    def agent_profile():
+    def agent_profile(selected_client=None, selected_settings=None):
+        selected_client = selected_client or client
+        selected_settings = selected_settings or settings
         return {"mode": "watch_agent", "managed_agent": True,
-                "agent": {"provider": client.provider, "model": settings.model,
-                          "real_model": client.provider != "offline_baseline", "settings": settings.to_dict(),
-                          "generation_settings": safe_generation(client)}}
+                **({'connection_id': selected_client.connection_id} if hasattr(selected_client, 'connection_id') else {}),
+                "agent": {"provider": selected_client.provider, "model": selected_settings.model,
+                          "real_model": selected_client.provider != "offline_baseline", "settings": selected_settings.to_dict(),
+                          "generation_settings": safe_generation(selected_client)}}
+
+    def agent_for(request, stored=None):
+        if connections is not None:
+            account = getattr(request.state, 'account', None)
+            cid = stored['profile'].get('connection_id') if stored else None
+            if stored is None or cid is not None:
+                if account is None:
+                    raise HTTPException(401, 'Accesso richiesto.')
+                owner_id = account['account_id']
+                if stored:
+                    with repository._connect() as db:
+                        owner = db.execute('SELECT account_id FROM session_owners WHERE session_id=?', (stored['id'],)).fetchone()
+                    if owner is None or owner[0] != owner_id:
+                        raise HTTPException(403, 'Soltanto il proprietario può consumare la propria connessione AI.')
+                configured = connections.configured(owner_id, cid)
+                if configured:
+                    return configured
+            if stored is None:
+                # Public accounts never inherit the host's shared API/plan.
+                return offline_client, offline_settings
+            if stored['profile'].get('agent', {}).get('provider') == 'offline_baseline':
+                return offline_client, AgentSettings(**stored['profile']['agent']['settings'])
+        if not personal_plan:
+            return client, settings
+        account = getattr(request.state, 'account', None)
+        if stored is None:
+            return ((client, settings) if account and account['account_id'] == agent_owner
+                    else (offline_client, offline_settings))
+        if stored['profile']['agent']['provider'] == 'offline_baseline':
+            # Historical sessions retain their original limits after deployment.
+            return offline_client, AgentSettings(**stored['profile']['agent']['settings'])
+        with repository._connect() as db:
+            owner = db.execute('SELECT account_id FROM session_owners WHERE session_id=?', (stored['id'],)).fetchone()
+        if not account or account['account_id'] != agent_owner or owner is None or owner[0] != agent_owner:
+            raise HTTPException(403, 'Piano ChatGPT riservato al proprietario e alle sue sessioni.')
+        return client, settings
 
     def match_records(stored):
         match_id = stored["profile"].get("match_id")
@@ -207,7 +289,7 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
     def mode_guard(stored, message):
         paired = match_records(stored)
         profile = stored["profile"]
-        limits = paired[0]["rules"] if paired else settings.to_dict() if profile.get("managed_agent") else None
+        limits = paired[0]["rules"] if paired else profile['agent']['settings'] if profile.get("managed_agent") else None
         if limits:
             if message["type"] not in OPERATOR_TYPES and agent_turns(stored) >= limits["max_turns"]:
                 raise ValidationError("Limite turni raggiunto; arresta l'indagine.")
@@ -257,9 +339,9 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
         return {"worlds": repository.list_worlds()}
 
     @app.get("/v1/modes")
-    async def modes_public():
+    async def modes_public(request: Request):
         return {"modes": ["scientist", "human_vs_ai", "watch_agent", "world_of_day", "build_universe"],
-                "agent": agent_profile()["agent"]}
+                "agent": agent_profile(*agent_for(request))["agent"]}
 
     @app.get("/v1/worlds/daily")
     async def daily():
@@ -276,7 +358,8 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
         authorize(request, None, "operator")
         body = await _body(request)
         require_keys(body, ("law", "budget"), ("seed",))
-        return {"world": repository.register_world(build_world(body["law"], body["budget"], body.get("seed"))),
+        check_world_capacity(request, body['budget'])
+        return {"world": personal_world(request, build_world(body["law"], body["budget"], body.get("seed"))),
                 "notice": "L'autore conosce la legge: mondo escluso da Human vs AI."}
 
     @app.post("/v1/worlds/generate", status_code=201)
@@ -284,7 +367,22 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
         authorize(request, None, "operator")
         body = await _body(request)
         require_keys(body, ("level", "budget"), ("seed",))
-        return {"world": repository.register_world(generate_world(body.get("seed"), body["level"], body["budget"]))}
+        check_world_capacity(request, body['budget'])
+        return {"world": personal_world(request, generate_world(body.get("seed"), body["level"], body["budget"]))}
+
+    def check_world_capacity(request, budget):
+        if public_workspace:
+            if type(budget) is not int or not 1 <= budget <= 10:
+                raise ValidationError('Nel workspace pubblico il budget mondo è fra 1 e 10.')
+            owner = request.state.account['account_id']
+            with repository._connect() as db:
+                if db.execute('SELECT COUNT(*) FROM workspace_worlds WHERE account_id=?', (owner,)).fetchone()[0] >= 20:
+                    raise HTTPException(429, 'Limite iniziale di venti mondi personali raggiunto.')
+
+    def personal_world(request, record):
+        if public_workspace:
+            return repository.register_world(record, owner=request.state.account['account_id'])
+        return repository.register_world(record)
 
     def find_world(body):
         if type(body["world_id"]) is not str or not re.fullmatch(r"w[0-9a-f]{16}", body["world_id"]):
@@ -305,13 +403,14 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
         if "builder_version" in manifest:
             raise ValidationError("Un mondo costruito dall'autore non è una challenge cieca.")
         human_token, hidden_token = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
+        selected_client, selected_settings = agent_for(request)
         message = apparatus(manifest["experiment_budget"])
         # Probe identici a quelli del record registrato, senza pubblicarli prima del freeze.
         match = repository.create_match(body["world_id"], sha256(human_token.encode()).hexdigest(),
-            sha256(hidden_token.encode()).hexdigest(), message, agent_profile(),
+            sha256(hidden_token.encode()).hexdigest(), message, agent_profile(selected_client, selected_settings),
             {"world_hash": manifest["sha256"], "probes_hash": digest(repository.read_world(body["world_id"])["probes"]),
-             "apparatus_hash": digest(message), "max_points": settings.max_points,
-             "max_turns": settings.max_turns, "experiment_budget": manifest["experiment_budget"]})
+             "apparatus_hash": digest(message), "max_points": selected_settings.max_points,
+             "max_turns": selected_settings.max_turns, "experiment_budget": manifest["experiment_budget"]})
         return {**match, "human_agent_token": human_token, "human": response(match["human_session_id"]),
                 "agent": response(match["agent_session_id"])}
 
@@ -339,7 +438,7 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
             raise ValidationError("Modalità non valida.")
         if mode == "world_of_day" and manifest["world_id"] != daily_manifest(day_clock())["world_id"]:
             raise ValidationError("Seleziona il mondo del giorno UTC corrente.")
-        profile = agent_profile() if mode == "watch_agent" else {"mode": mode, "managed_agent": False}
+        profile = agent_profile(*agent_for(request)) if mode == "watch_agent" else {"mode": mode, "managed_agent": False}
         agent_token = secrets.token_urlsafe(32)
         session_id = repository.create_session(body["world_id"], sha256(agent_token.encode()).hexdigest(),
                                                apparatus(manifest["experiment_budget"]), profile)
@@ -498,12 +597,13 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
         if not stored["profile"].get("managed_agent") or state.status() not in (
                 "discovering", "awaiting_prediction", "awaiting_submission"):
             raise ValidationError("Passo agente non disponibile: serve prima l'azione dell'operatore.")
-        if stored["profile"]["agent"] != agent_profile()["agent"]:
+        selected_client, selected_settings = agent_for(request, stored)
+        if stored["profile"]["agent"] != agent_profile(selected_client, selected_settings)["agent"]:
             raise ValidationError("Configurazione agente cambiata dopo l'avvio; ripristina le impostazioni originali.")
         paired = match_records(stored)
         if paired and paired[1][0][1].submission is None:
             raise ValidationError("Consegna prima la risposta umana; le storie restano separate.")
-        if agent_turns(stored) >= settings.max_turns:
+        if agent_turns(stored) >= selected_settings.max_turns:
             raise ValidationError("Limite turni raggiunto; arresta l'indagine.")
         previous = in_flight.get(session_id)
         if previous is not None and not previous.done():
@@ -513,25 +613,25 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
         in_flight[session_id] = marker
         task = None
         try:
-            for attempt in range(settings.max_corrections + 1):
+            for attempt in range(selected_settings.max_corrections + 1):
                 stored, state = load(session_id)
                 if state.version != body["expected_version"]:
                     raise ConflictError()
-                call_index = repository.reserve_call(session_id, state.version, settings.max_calls)
-                audit = {"provider": client.provider, "model": settings.model, "settings": settings.to_dict(),
-                         "sdk_version": getattr(client, "sdk_version", None),
-                         "generation_settings": safe_generation(client)}
+                call_index = repository.reserve_call(session_id, state.version, selected_settings.max_calls)
+                audit = {"provider": selected_client.provider, "model": selected_settings.model, "settings": selected_settings.to_dict(),
+                         "sdk_version": getattr(selected_client, "sdk_version", None),
+                         "generation_settings": safe_generation(selected_client)}
                 try:
-                    payload = build_web_request(stored["events"], settings, state,
-                        settings.max_calls - call_index, settings.max_turns - agent_turns(stored), paired=bool(paired))
+                    payload = build_web_request(stored["events"], selected_settings, state,
+                        selected_settings.max_calls - call_index, selected_settings.max_turns - agent_turns(stored), paired=bool(paired))
                     if attempt:
                         payload = replace(payload, context={**payload.context,
                             "correction": "Risposta precedente non valida. Rispetta contratto, fase e limiti pubblici."})
-                    if payload.size_bytes() > settings.max_input_bytes:
+                    if payload.size_bytes() > selected_settings.max_input_bytes:
                         raise ValidationError("Storia pubblica oltre il limite di input.")
                     audit.update(payload.contract_fingerprints())
-                    task = asyncio.create_task(asyncio.to_thread(client.complete, payload))
-                    reply = await asyncio.wait_for(asyncio.shield(task), timeout=settings.timeout)
+                    task = asyncio.create_task(asyncio.to_thread(selected_client.complete, payload))
+                    reply = await asyncio.wait_for(asyncio.shield(task), timeout=selected_settings.timeout)
                     audit.update(safe_metadata(reply))
                     if len(reply.text.encode("utf-8")) > MAX_MESSAGE_BYTES:
                         raise ValidationError("Risposta agente troppo grande.")
@@ -549,7 +649,7 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
                     raise HTTPException(503, "Chiamata agente non riuscita; nessun esperimento eseguito. Riprova esplicitamente.") from None
                 except ValidationError:
                     repository.finish_call(session_id, call_index, "invalid", audit)
-                    if attempt == settings.max_corrections:
+                    if attempt == selected_settings.max_corrections:
                         raise ValidationError("Tentativi di correzione esauriti; nessun esperimento eseguito.") from None
                     continue
                 except ConflictError:
@@ -577,6 +677,10 @@ def create_app(db_path=None, *, worlds=(), repository: SessionRepository | None 
     if isinstance(repository, SQLiteRepository):
         from .arena import install_arena
         install_arena(app, repository, token)
+        from .identity import install_identity
+        install_identity(app, repository, enabled=auth_mode == 'accounts', origin=public_origin,
+                         secure_cookies=secure_cookies, clock=identity_clock, public_workspace=public_workspace,
+                         open_registration=open_registration, max_accounts=max_accounts)
     from .runtime_ops import install_operations
     install_operations(app, repository)
     if static_dir is not None:

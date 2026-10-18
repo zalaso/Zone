@@ -1,0 +1,39 @@
+# Private beta: never expose the application port on the public interface.
+services:
+  zone:
+    image: ${ZONE_IMAGE:?Set the verified release image}
+    ports:
+      - '127.0.0.1:8876:8765'
+    command:
+      - serve
+      - --db
+      - /data/zone.sqlite3
+      - --host
+      - 0.0.0.0
+      - --container-local
+      - --auth-mode
+      - accounts
+      - --public-origin
+      - ${ZONE_PUBLIC_ORIGIN:?Set the exact private HTTPS origin}
+      - --web-dir
+      - /app/web
+      - --agent-max-calls
+      - '8'
+    volumes:
+      - ./data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    cpus: 0.5
+    mem_limit: 384m
+    memswap_limit: 384m
+    pids_limit: 64
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: '2'

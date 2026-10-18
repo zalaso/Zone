@@ -42,6 +42,7 @@ try {
   await page.getByRole('button', { name: 'Esegui esperimento →' }).click()
   await page.getByText('3 misure registrate', { exact: true }).waitFor()
   console.log('Verifica reale eseguita dopo autorizzazione esplicita.')
+  await page.getByText('Concludi e passa alla prova finale', { exact: true }).click()
   await page.getByLabel('Conclusione', { exact: true }).fill('Percorso verificato; informazioni insufficienti per una legge.')
   await page.getByLabel('Limiti (almeno uno, uno per riga)').fill('Un solo lancio.')
   await page.getByRole('button', { name: 'Registra conclusione' }).click()

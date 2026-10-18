@@ -24,21 +24,28 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: ${{ matrix.python }}
-      - run: python -m pip install -c constraints-ci.txt -e ".[backend,all-llm,dev]"
+      - run: python -m pip install -c constraints-ci.txt -e ".[workspace,all-llm,dev]"
       - run: python -m ruff check hidden_lab tests tools
       - run: python -m unittest discover -s tests -q
       - run: python -m hidden_lab ops demo --out benchmark_data/ci-demo
-      - run: python -m build --outdir dist
-      - run: python tools/check_release.py --archives dist
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - run: npm install --global pnpm@10.28.0
+      - run: pnpm --dir frontend install --frozen-lockfile
+      - run: python tools/build_release.py --out dist
+      - run: python tools/check_publication.py --history
+      - run: python tools/check_docs.py
       - name: Clean wheel installation, restart and live restore
         shell: bash
         run: python tools/verify_distribution.py --mode wheel --wheel dist/*.whl --out benchmark_data/clean-wheel
   frontend:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: frontend
@@ -46,6 +53,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
@@ -57,6 +65,24 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm check:bundle
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -c ../constraints-ci.txt -e '..[workspace]'
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Start offline workspace
+        run: |
+          cd ..
+          python -m hidden_lab workspace --data benchmark_data/browser-ci --port 8767 > /tmp/zone-browser.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8767/health/ready; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - run: pnpm run test:browser:experience
+      - name: Respect shared local IP rate window
+        run: sleep 60
+      - run: pnpm run test:browser:workspace
   container:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -64,6 +90,10 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
+          fetch-depth: 0
       - run: docker build --tag zone:ci .
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
       - name: Offline container, persistent restart and live restore
         run: python tools/verify_distribution.py --mode docker --image zone:ci --out benchmark_data/container-verification

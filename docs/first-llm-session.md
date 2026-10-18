@@ -1,8 +1,10 @@
 # Prima sessione con un agente LLM
 
+Per usare l’abbonamento ChatGPT senza una chiave API aggiuntiva, segui [la guida OAuth e pilot](chatgpt-plan.md): `python -m hidden_lab chatgpt login`, poi `python -m hidden_lab chatgpt pilot`. Provider `chatgpt` distinto da `openai`; extra `.[chatgpt]`. La preview non accetta `max_output_tokens`; il limite locale non limita i token del servizio. Accesso e indagine reali ancora da verificare, nessun fallback a pagamento. Gli altri provider descritti sotto mantengono il collegamento esistente.
+
 Questa guida è per l'operatore e riguarda la sessione CLI con LLM. Non viene inviata al modello. `investigate` conserva simulatore, validatori, registri, grafici e demo manuale e può usare OpenAI, Anthropic, Gemini, Ollama locale o il copione simulato. Il benchmark separato è ora alla v0.3.
 
-Puoi anche generare un mondo AST di livello 1–5 con [World Forge](world-forge.md) e passare il suo `config.json` privato a `investigate`. Il payload del modello continua a contenere solo apparato e storia pubblica. I mondi AST non fanno parte delle suite benchmark v0.3 e non sono stati provati con chiamate LLM reali.
+Puoi anche generare un mondo AST di livello 1–5 con [World Forge](world-forge.md) e passare il suo `config.json` privato a `investigate`. Il payload del modello continua a contenere solo apparato e storia pubblica. I mondi AST non fanno parte delle suite benchmark v0.3. I primi tentativi Qwen reali non hanno prodotto esperimenti: capacità di scoperta ancora da verificare. Per il pilot Gemini gratuito con chiave nascosta e mondo nuovo segui [questa guida](pilot-llm.md).
 
 ## 1. Preparazione
 
@@ -71,6 +73,8 @@ Remove-Item Env:ANTHROPIC_API_KEY
 
 **Gemini.** Installa `.[gemini]` e scegli un modello supportato dal [Google Gen AI SDK e dallo structured output](https://ai.google.dev/gemini-api/docs/generate-content/structured-output). La credenziale usa `GEMINI_API_KEY`; il client usa Gemini Developer API, non Vertex AI.
 
+Il default usa schema vincolato. `--gemini-output-mode json` sceglie esplicitamente JSON con il medesimo contratto pubblico nel prompt, conservando la validazione locale e le conferme: può aiutare con incompatibilità del percorso schema, ma non c'è fallback automatico. Modalità registrata fra le impostazioni di generazione; le sessioni dei due modi non sono scientificamente equivalenti. Dettagli ed evidenze del pilot in [pilot LLM](pilot-llm.md).
+
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e '.[gemini]'
 $zoneApiKey = Read-Host 'Gemini API key' -AsSecureString
@@ -122,7 +126,7 @@ La conclusione contiene `final_hypothesis_id`, `summary`, `evidence`, `limits`, 
 | `--max-calls` | 20 | Tentativi API totali, incluse correzioni, timeout ed errori |
 | `--max-turns` | 15 | Messaggi validi accettati dal modello, incluse domande e ipotesi |
 | `--max-corrections` | 2 | Chiamate aggiuntive dopo una risposta non valida per lo stesso passo |
-| `--timeout` | 30 s | Timeout delle operazioni di rete SDK/HTTPX; intervallo ammesso 1–120 s |
+| `--timeout` | 30 s | Timeout SDK/HTTPX: 1–120 s remoto, fino a 600 s con Ollama locale; default invariato |
 | `--max-output-tokens` | 2500 | Limite di generazione per chiamata, compresi gli eventuali token di ragionamento |
 | `--max-input-bytes` | 200000 | Dimensione massima locale del payload JSON prima dell'invio |
 | `--max-points` | 9 | Campioni massimi per esperimento in `investigate` |
@@ -175,7 +179,7 @@ Sono verificati offline il ciclo completo attraverso la CLI, la domanda e rispos
 
 OpenAI e Anthropic sono esercitati con gli SDK reali e trasporti HTTP fittizi; Gemini con un doppio dell'SDK che restituisce oggetti di risposta del suo pacchetto; Ollama con HTTPX `MockTransport`. Senza chiamate a modelli controlliamo payload, timeout, assenza di retry, metadati, contatori nativi, HTTP 400/401/429/500, risposte incomplete e confine informativo. Test con valori sentinella verificano che segreti e informazioni private non entrino nei payload o nei registri dell'agente.
 
-**Non è stata effettuata alcuna chiamata a un modello reale, neppure Ollama.** Restano da verificare con la prima sessione autorizzata: accesso dell'account o disponibilità del modello locale, accettazione effettiva dello schema, latenza e utilizzo reali, capacità di progettare esperimenti, qualità delle ipotesi e accuratezza delle previsioni numeriche. Il client simulato non dà evidenza su queste capacità.
+**La fase 12 ha completato il primo pilot locale reale.** Dopo i tentativi Qwen/Gemini e la correzione del lettore streaming, [ChatGPT con OAuth ufficiale](chatgpt-plan.md) ha concluso otto turni validi e tre esperimenti autorizzati, con ipotesi, una previsione preregistrata e conclusione. L’autore conferma in Usage sola quota dell’abbonamento e nessun credito extra. Il [resoconto verificato](pilot-chatgpt-result.md) riporta utilizzo, latenza e RMSE, distinguendo successo operativo e limiti scientifici: un mondo e tempi fino a 0,2 s non validano il benchmark, Arena o una legge unica. Modifica, rifiuto, domanda/risposta e varianti d’errore restano verificati con client simulato. I tentativi precedenti sono conservati in [pilot LLM](pilot-llm.md).
 
 ## Riferimenti ufficiali consultati
 

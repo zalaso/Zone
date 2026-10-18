@@ -1,0 +1,24 @@
+# The frontend and wheel are built and checked on the workstation first.
+# Build only from the allowlisted context produced by tools.package_beta.
+FROM python:3.12-slim-bookworm
+ARG INSTALL_CHATGPT=0
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 MPLBACKEND=Agg MPLCONFIGDIR=/tmp/zone-mpl
+WORKDIR /app
+COPY constraints-ci.txt ./
+COPY wheels ./wheels
+RUN pip install --no-cache-dir -c constraints-ci.txt ./wheels/*.whl fastapi uvicorn httpx \
+    && rm -r wheels \
+    && groupadd --gid 10001 zone \
+    && useradd --uid 10001 --gid zone --no-create-home zone
+RUN if [ "$INSTALL_CHATGPT" = "1" ]; then \
+      pip install --no-cache-dir -c constraints-ci.txt openai 'PyJWT[crypto]'; \
+    elif [ "$INSTALL_CHATGPT" != "0" ]; then exit 1; fi
+COPY web ./web
+# A context extracted on Linux may have root-only directories. Static assets
+# are public; make them readable/traversable before dropping privileges.
+RUN chmod -R a=rX /app/web
+USER 10001:10001
+EXPOSE 8765
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD python -c "from urllib.request import urlopen; urlopen('http://127.0.0.1:8765/health/ready', timeout=3).close()"
+ENTRYPOINT ["python", "-m", "hidden_lab"]

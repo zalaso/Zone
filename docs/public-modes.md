@@ -1,5 +1,8 @@
 # Modalità del laboratorio locale — fase 6
 
+> Historical/advanced engineering reference. For the version 1.0 supported installation start with [Getting started](getting-started.md), [AI connections](ai-connections.md) and [self-hosting](self-hosting.md). Earlier phase statuses describe that earlier revision, not missing release features or a current hosted service.
+
+
 Le cinque modalità usano lo stesso simulatore, protocollo, registro SQLite, freeze della submission e valutatore scientifico. Non modificano suite, trial o aggregazione del benchmark v0.3. Il server predefinito usa **una baseline numerica offline, non un LLM**: propone lanci con una policy pubblica e stima accelerazioni dalle sole posizioni osservate. Non legge legge, seed, schedule privata o verità dei probe. È una verifica del software, non una dimostrazione di scoperta scientifica.
 
 | Percorso | Comportamento |
@@ -58,7 +61,11 @@ Se i budget si esauriscono dopo la conclusione o una submission rimane pendente,
 
 L'audit privato `GET /v1/sessions/{id}/agent/audit`, con `X-Zone-Token` operatore, conserva provider, modello richiesto/restituito, SDK, impostazioni, fingerprint del contratto, utilizzo nativo restituito e stato (`accepted`, `invalid`, `error`, `stale`, `interrupted`, o prenotazione `started` dopo un crash). Nessuna chiave, header SDK, prompt integrale o corpo invalido viene salvato. I conteggi mancanti restano indisponibili; il costo monetario di un provider reale richiede prezzi/fatturazione e non viene inventato. Non si promette riproducibilità esatta delle risposte LLM. Un errore dell'agente non ripete un esperimento: solo `/run` può invocare il simulatore e il registro impedisce un secondo lancio già iniziato.
 
-## Pilot reale successivo — non eseguito nello sviluppo
+## Piano ChatGPT personale nel web
+
+`serve --agent-provider chatgpt` riusa il provider CLI. Con account richiede `--agent-owner`, riserva il piano a quell’identità e alle sue sessioni, e mantiene offline gli altri invitati. Modello e consenso sono espliciti; nessun fallback API. [Preparazione VM, trasferimento autorizzato e limiti](web-llm-pilot.md). Nessuna inferenza web reale è stata eseguita nello sviluppo.
+
+## Pilot API reale successivo — non eseguito nello sviluppo
 
 Riusa gli adapter esistenti, senza modello predefinito costoso. Prepara tu `OPENAI_API_KEY` nell'ambiente del terminale e scegli un ID modello in `OPENAI_MODEL`. Per un solo mondo, in un database nuovo:
 

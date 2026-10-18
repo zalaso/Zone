@@ -1,0 +1,38 @@
+# Optional override for the author's personal VM pilot only.
+# docker compose --env-file compose.env -f compose.yaml -f compose.chatgpt.yaml up -d
+services:
+  zone:
+    command:
+      - serve
+      - --db
+      - /data/zone.sqlite3
+      - --host
+      - 0.0.0.0
+      - --container-local
+      - --auth-mode
+      - accounts
+      - --public-origin
+      - ${ZONE_PUBLIC_ORIGIN:?Set the exact public HTTPS origin}
+      - --web-dir
+      - /app/web
+      - --agent-provider
+      - chatgpt
+      - --agent-model
+      - ${ZONE_CHATGPT_MODEL:?Choose an explicit model from the account catalog}
+      - --agent-owner
+      - ${ZONE_CHATGPT_OWNER:?Set the personal plan owner's Zone account ID}
+      - --chatgpt-credentials-dir
+      - /auth/chatgpt
+      - --allow-real-agent
+      - --agent-max-calls
+      - '8'
+      - --agent-max-turns
+      - '8'
+      - --agent-max-corrections
+      - '1'
+      - --agent-max-points
+      - '3'
+      - --agent-timeout
+      - '110'
+    volumes:
+      - ./secrets/oauth:/auth

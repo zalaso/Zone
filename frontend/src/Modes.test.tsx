@@ -34,6 +34,14 @@ describe('modalità pubbliche locali', () => {
     expect(screen.getByText(/arrestare anche quella/)).toBeInTheDocument()
   })
 
+  it('spiega il piano personale, la quota e il limite della preview', () => {
+    render(<AgentDescription agent={{ ...agent, provider: 'chatgpt', real_model: true }} />)
+    expect(screen.getByText('Modello reale · piano ChatGPT personale')).toBeInTheDocument()
+    expect(screen.getByText(/quota del piano/)).toBeInTheDocument()
+    expect(screen.getByText(/Nessun fallback API/)).toBeInTheDocument()
+    expect(screen.getByText(/non consente un tetto ai token/)).toBeInTheDocument()
+  })
+
   it('registra soltanto il mondo restituito dopo la validazione del server', async () => {
     const world = { world_id: 'w1234567890abcdef', experiment_budget: 3 }
     fake.generate.mockResolvedValue({ world })

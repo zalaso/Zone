@@ -4,20 +4,28 @@ export class ApiError extends Error {
   constructor(message: string, readonly status: number) { super(message) }
 }
 
+let accountMode = false
+let csrfToken: string | undefined
+export function accountTransport(enabled: boolean, csrf?: string) {
+  accountMode = enabled; csrfToken = csrf
+}
+
 export async function request<T>(path: string, method = 'GET', body?: unknown, token?: string, extraHeaders: Record<string, string> = {}): Promise<T> {
   const headers: Record<string, string> = { ...extraHeaders }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
-  if (token) headers['X-Zone-Token'] = token
+  if (token && (!accountMode || path.startsWith('/arena/'))) headers['X-Zone-Token'] = token
+  if (accountMode && csrfToken && method !== 'GET' && method !== 'HEAD') headers['X-Zone-CSRF'] = csrfToken
   let response: Response
   try {
     response = await fetch(`/v1${path}`, {
       method, headers, body: body === undefined ? undefined : JSON.stringify(body),
-      cache: 'no-store', credentials: 'omit',
+      cache: 'no-store', credentials: accountMode ? 'same-origin' : 'omit',
     })
   } catch {
     throw new ApiError('Il backend locale non risponde. Controlla che sia avviato.', 0)
   }
   if (!response.ok) {
+    if (accountMode && response.status === 401) window.dispatchEvent(new Event('zone-auth-expired'))
     let detail = `Richiesta non riuscita (${response.status}).`
     try {
       const data = await response.json() as { detail?: string }

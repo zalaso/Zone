@@ -21,7 +21,7 @@ export type ArenaTrial = SessionStatus & {
   challenge_id: string; agent_id: string; account: ArenaAgent; messages: number; observations: number
   scores: Scores | null; events?: LabEvent[]
   integrity?: IntegrityInfo
-  resources: { agent_requests: number; invalid_requests: number; external_model_calls: null; external_cost: null }
+  resources: { agent_requests: number; invalid_requests: number; external_model_calls: null; external_cost: null; managed_model_calls?: number; invalid_model_responses?: number }
 }
 export type ArenaBoard = {
   challenge: ArenaChallenge; trials: ArenaTrial[]

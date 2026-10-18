@@ -1,5 +1,8 @@
 # Fase 11 — verifica della distribuzione
 
+> Historical/advanced engineering reference. For the version 1.0 supported installation start with [Getting started](getting-started.md), [AI connections](ai-connections.md) and [self-hosting](self-hosting.md). Earlier phase statuses describe that earlier revision, not missing release features or a current hosted service.
+
+
 Zone 0.11.0 conserva benchmark v0.3, Arena BYOA v1, Integrity v1 e schema SQLite 2. Questa fase prova il software distribuito, non la capacità scientifica di un LLM. Nessuna chiamata a provider o download di modelli.
 
 Il repository remoto è privato, `zalaso/Zone`. L'autore ha confermato budget GitHub Actions zero e blocco degli extra prima dell'avvio della CI. Si usano runner standard, senza credenziali provider, segreti Actions o pubblicazione di immagini. Non è un deployment.

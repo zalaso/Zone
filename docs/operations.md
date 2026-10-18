@@ -1,6 +1,9 @@
 # Operazioni locali — Zone 0.11
 
-Il perimetro è un host fidato, un processo server e un operatore su loopback. Le modalità `local` e `staging-local` sono etichette operative: non attivano isolamento automatico o configurazioni di sicurezza diverse. Usare cartelle, database, pacchetti e token distinti. Nessun deployment pubblico è stato eseguito.
+> Historical/advanced engineering reference. For the version 1.0 supported installation start with [Getting started](getting-started.md), [AI connections](ai-connections.md) and [self-hosting](self-hosting.md). Earlier phase statuses describe that earlier revision, not missing release features or a current hosted service.
+
+
+Questa guida descrive un host fidato, un processo server e un operatore su loopback. La [beta web attuale](public-beta.md) usa account su invito e HTTPS pubblico sul VPS, con porte applicative su loopback e bridge privato del proxy. La [precedente configurazione Tailscale](private-beta.md) è conservata per cronologia e rollback. Le modalità `local` e `staging-local` sono etichette operative: non attivano isolamento automatico o configurazioni di sicurezza diverse. Usare cartelle, database, pacchetti e token distinti.
 
 ## Primo avvio dal checkout
 
@@ -105,3 +108,7 @@ docker compose down
 Non ripetere bootstrap su destinazioni esistenti. Per backup successivi: `docker compose run --rm zone ops backup --db /data/zone.sqlite3 --out /data/snapshot-02.sqlite3`; conservare coppia DB/manifest anche fuori dal volume con accesso controllato. Non usare `down --volumes` su dati da conservare.
 
 **Docker rimane assente sul PC; build e runtime sono stati verificati sul runner Linux GitHub nella fase 11.** La [CI reale](https://github.com/zalaso/Zone/actions/runs/37821050036) passa demo, health strettamente `healthy`, bundle, riavvio del server sullo stesso volume e backup/restore con confronto completo dei dati e replay. Il repository è privato; non viene pubblicata un'immagine. Prova equivalente con wheel isolata sul PC e sui runner Linux/Windows: [comandi e limiti](distribution.md). Tag base e dipendenze transitive non sono bloccati per digest: nessuna promessa di build identiche. La [documentazione ufficiale Docker](https://docs.docker.com/build/building/multi-stage/) descrive la build multistage.
+
+## Account su invito
+
+La fase 13 aggiunge schema SQLite 3 e modalità `accounts`: [guida identità](identity.md) per bootstrap, ruoli, quote e revoca. I database con account rifiutano il downgrade alla modalità locale. Fermare il servizio e fare un backup prima di attivare gli account su dati esistenti; le vecchie sessioni restano riservate allo staff salvo adozione esplicita di una sessione singola. Il restore conserva hash e revoche alla data del backup: riconciliare quelle successive prima di riaprire. TLS Tailscale, backup/restore e riavvio del solo Zone sono stati verificati sul VPS nella [fase 14](private-beta.md); restano utenti invitati e carico rappresentativo.

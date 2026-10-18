@@ -1,0 +1,4 @@
+# Explicit opt-in to encrypted, per-user API credentials. No automatic inference.
+services:
+  zone:
+    command: [workspace, --data, /data, --host, 0.0.0.0, --container-local, --port, '8765', --origin, '${ZONE_ORIGIN:-http://127.0.0.1:8767}', --web-dir, /app/web, --enable-personal-api]

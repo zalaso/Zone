@@ -79,12 +79,15 @@ def main(argv=None):
     agent.add_argument("--config", required=True, type=Path)
     agent.add_argument("--session", required=True, type=Path)
     agent.add_argument("--provider", "--client", dest="provider", required=True,
-                       choices=("openai", "anthropic", "gemini", "ollama", "simulated"))
+                       choices=("openai", "chatgpt", "anthropic", "gemini", "ollama", "simulated"))
     agent.add_argument("--model", help="ID del modello; altrimenti <PROVIDER>_MODEL, senza default reale")
+    agent.add_argument("--gemini-output-mode", choices=("schema", "json"), default="schema",
+                       help="Solo Gemini: schema vincolato (default), oppure JSON con contratto pubblico nel prompt")
     agent.add_argument("--max-calls", type=int, default=20)
     agent.add_argument("--max-turns", type=int, default=15)
     agent.add_argument("--max-corrections", type=int, default=2)
-    agent.add_argument("--timeout", type=float, default=30)
+    agent.add_argument("--timeout", type=float, default=30,
+                       help="Timeout rete: 1–120 s remoto, 1–600 s Ollama locale (default 30)")
     agent.add_argument("--max-output-tokens", type=int, default=2500)
     agent.add_argument("--max-points", type=int, default=9)
     agent.add_argument("--max-input-bytes", type=int, default=200000)
@@ -102,8 +105,19 @@ def main(argv=None):
     add_integrity_parser(commands)
     from .operations import add_parser as add_operations_parser
     add_operations_parser(commands)
+    from .chatgpt_cli import add_parser as add_chatgpt_parser
+    add_chatgpt_parser(commands)
+    from .connector_cli import add_parser as add_connector_parser
+    add_connector_parser(commands)
+    from .identity_cli import add_parser as add_identity_parser
+    add_identity_parser(commands)
+    from .workspace_cli import add_parser as add_workspace_parser
+    add_workspace_parser(commands)
     args = parser.parse_args(argv)
     try:
+        if args.command == "workspace":
+            from .workspace_cli import run_command
+            return run_command(args)
         if args.command == "plot":
             print(plot_trajectory(args.public, args.request))
             return 0
@@ -128,20 +142,31 @@ def main(argv=None):
         if args.command == "ops":
             from .operations import run_command
             return run_command(args)
+        if args.command == "chatgpt":
+            from .chatgpt_cli import run_command
+            return run_command(args)
+        if args.command == 'connector':
+            from .connector_cli import run_command
+            return run_command(args)
+        if args.command == 'identity':
+            from .identity_cli import run_command
+            return run_command(args)
         config = parse_config(decode(args.config.read_text(encoding="utf-8-sig")))
         if args.command == "investigate":
+            if args.provider != "gemini" and args.gemini_output_mode != "schema":
+                raise ValidationError("La modalità JSON alternativa è disponibile solo con Gemini.")
             from .investigation import Investigation
             from .provider_base import AgentSettings
             from .terminal import Terminal
             model_env = {"openai": "OPENAI_MODEL", "anthropic": "ANTHROPIC_MODEL",
-                         "gemini": "GEMINI_MODEL", "ollama": "OLLAMA_MODEL"}
+                         "gemini": "GEMINI_MODEL", "ollama": "OLLAMA_MODEL", "chatgpt": "CHATGPT_MODEL"}
             settings = AgentSettings(model=(args.model or os.environ.get(model_env[args.provider], ""))
                                      if args.provider != "simulated" else "simulated-script-v1",
                                      max_calls=args.max_calls, max_turns=args.max_turns,
                                      max_corrections=args.max_corrections, timeout=args.timeout,
                                      max_output_tokens=args.max_output_tokens, max_points=args.max_points,
                                      max_input_bytes=args.max_input_bytes)
-            if args.provider == "openai":
+            if args.provider in ("openai", "chatgpt"):
                 from .provider_factory import create_real_client
                 client = create_real_client(args.provider, settings)
             elif args.provider == "anthropic":
@@ -149,7 +174,7 @@ def main(argv=None):
                 client = create_real_client(args.provider, settings)
             elif args.provider == "gemini":
                 from .provider_factory import create_real_client
-                client = create_real_client(args.provider, settings)
+                client = create_real_client(args.provider, settings, gemini_output_mode=args.gemini_output_mode)
             elif args.provider == "ollama":
                 from .provider_factory import create_real_client
                 client = create_real_client(args.provider, settings)
